@@ -259,13 +259,7 @@ kubectl port-forward svc/grafana 3000:80 -n monitoring
 
 ---
 
-**Author:** *Your Name*
-📧 Contact: *[you@example.com](mailto:you@example.com)*
+**Author:** *Jeff Taylor*
+📧 Contact: *[jtayl22@gmail.com](mailto:jtayl22@gmail.com)*
 ⭐ *If this helps, star the repo!*
 
----
-
-Would you like me to:
-
-✅ **Also draft the repo tagline + one-liner for GitHub description**?
-✅ Or **add an architecture diagram (PNG + Mermaid Markdown) to this README** to make it visually appealing?
