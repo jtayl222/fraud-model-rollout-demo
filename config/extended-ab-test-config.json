@@ -1,0 +1,41 @@
+{
+  "experiment_name": "fraud-detection-extended-ab-test",
+  "start_date": "2025-07-22T00:54:39.809942",
+  "planned_duration_days": 28,
+  "traffic_split": {
+    "baseline_v1": 80,
+    "candidate_v2": 20
+  },
+  "success_criteria": {
+    "minimum_transactions_per_model": 10000,
+    "required_recall_improvement": 0.05,
+    "maximum_precision_degradation": 0.1,
+    "minimum_statistical_significance": 0.95
+  },
+  "model_configurations": {
+    "fraud-v1-baseline": {
+      "threshold": 0.5,
+      "expected_performance": {
+        "precision": 0.9795,
+        "recall": 0.7351,
+        "f1_score": 0.8399
+      }
+    },
+    "fraud-v2-candidate": {
+      "threshold": 0.9,
+      "expected_performance": {
+        "precision": 0.9595,
+        "recall": 1.0,
+        "f1_score": 0.9793
+      }
+    }
+  },
+  "monitoring": {
+    "metrics_collection_interval_seconds": 60,
+    "alert_thresholds": {
+      "max_response_time_ms": 2000,
+      "min_success_rate": 0.99,
+      "max_error_rate": 0.01
+    }
+  }
+}
