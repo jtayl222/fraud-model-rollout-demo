@@ -207,7 +207,25 @@ marimo/_lsp/
 __marimo__/
 
 # Data directories and files
+# Data should be stored on a Persistent Volume Claim (PVC) and not committed to the repository.
 data/
 
 # Model directories and files
+# Models are expected to be managed by MLflow and stored externally (e.g., in an artifact store).
 models/
+
+# Environment-specific Kubernetes configurations
+# These contain cluster-specific values (S3 URIs, registry URLs, resource quotas)
+# Use the corresponding .example files as templates
+k8s/base/model-config.yaml
+k8s/base/fraud-model-ab-test.yaml
+k8s/base/server-config-scoped.yaml
+k8s/base/rbac.yaml
+
+# Environment-specific overlays (dev/staging/prod)
+k8s/overlays/
+
+# Kubernetes manifests
+# Ignore all Kubernetes manifests except example files for documentation purposes.
+k8s/manifests/**/*.yaml
+!k8s/manifests/**/example-*.yaml
