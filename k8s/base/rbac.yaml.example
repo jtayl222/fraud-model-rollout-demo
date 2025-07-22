@@ -1,0 +1,103 @@
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: fraud-mlops-sa
+  namespace: seldon-system
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: fraud-mlops-role
+  namespace: seldon-system
+rules:
+  - apiGroups: [""]
+    resources: ["pods", "pods/log", "services", "configmaps", "secrets"]
+    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+  - apiGroups: ["batch", "extensions"]
+    resources: ["jobs"]
+    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+  - apiGroups: ["argoproj.io"]
+    resources: ["workflows", "workflowtaskresults"]
+    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: fraud-mlops-rolebinding
+  namespace: seldon-system
+subjects:
+  - kind: ServiceAccount
+    name: fraud-mlops-sa
+    namespace: seldon-system
+roleRef:
+  kind: Role
+  name: fraud-mlops-role
+  apiGroup: rbac.authorization.k8s.io
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: argo-workflow-sa
+  namespace: seldon-system
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: argo-workflow-rolebinding
+  namespace: seldon-system
+subjects:
+  - kind: ServiceAccount
+    name: argo-workflow-sa
+    namespace: seldon-system
+roleRef:
+  kind: Role
+  name: fraud-mlops-role
+  apiGroup: rbac.authorization.k8s.io
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  namespace: seldon-system
+  name: fraud-model-deployer
+rules:
+- apiGroups: ["mlops.seldon.io"]
+  resources: ["models", "experiments"]
+  verbs: ["get", "list", "create", "update", "patch", "delete"]
+- apiGroups: [""]
+  resources: ["configmaps", "secrets", "services", "pods"]
+  verbs: ["get", "list", "watch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: fraud-mlserver-rolebinding
+  namespace: seldon-system
+subjects:
+- kind: ServiceAccount
+  name: fraud-mlops-sa
+  namespace: seldon-system
+roleRef:
+  kind: Role
+  name: fraud-model-deployer
+  apiGroup: rbac.authorization.k8s.io
+---
+---
+apiVersion: v1
+kind: ResourceQuota
+metadata:
+  name: fraud-detection-quota
+  namespace: seldon-system
+spec:
+  hard:
+    # Adjust based on your cluster size and requirements
+    # Example values for a 5-node cluster with 36 total CPUs:
+    requests.cpu: "24"          # ~67% of cluster CPU capacity (adjust for your cluster)
+    requests.memory: 96Gi       # Adjust based on available cluster memory
+    
+    # Pod limits to prevent resource exhaustion
+    count/pods: "150"                           # Adjust based on cluster capacity
+    count/workflows.argoproj.io: "50"           # Limit concurrent workflows
+    
+    # Fraud detection specific resource limits
+    count/models.mlops.seldon.io: "20"          # Maximum number of models
+    count/experiments.mlops.seldon.io: "10"     # Maximum number of experiments

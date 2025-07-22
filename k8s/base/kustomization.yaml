@@ -1,0 +1,74 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+metadata:
+  name: fraud-detection-base
+  annotations:
+    config.kubernetes.io/local-config: "true"
+
+resources:
+  # Namespace
+  - namespace.yaml
+  
+  # Configuration
+  - model-config.yaml
+  
+  # Storage
+  - fraud-model-pvc.yaml
+  
+  # RBAC
+  - rbac.yaml
+  
+  # Seldon Core Configuration
+  - server-config-scoped.yaml
+  - mlserver.yaml
+  
+  # Model Deployment and A/B Testing
+  - fraud-model-ab-test.yaml
+  
+  # Networking (if needed)
+  - fraud-model-predictor-vs.yaml
+  - nginx-ingress.yaml
+  - network-policy.yaml
+  
+  # Event-driven workflows
+  - event-source.yaml
+  - sensor.yaml
+  
+  # Training Pipelines (separate deployment)
+  - fraud-model-data-pipeline.yaml
+  - training-pipeline.yaml
+
+# Variable substitution from ConfigMap
+replacements:
+- source:
+    kind: ConfigMap
+    name: fraud-model-config
+    fieldPath: data.fraud-v1-storage-uri
+  targets:
+  - select:
+      kind: Model
+      name: fraud-v1-baseline
+    fieldPaths:
+    - spec.storageUri
+
+- source:
+    kind: ConfigMap
+    name: fraud-model-config
+    fieldPath: data.fraud-v2-storage-uri
+  targets:
+  - select:
+      kind: Model
+      name: fraud-v2-candidate
+    fieldPaths:
+    - spec.storageUri
+
+
+commonLabels:
+  app.kubernetes.io/name: fraud-detection
+  app.kubernetes.io/part-of: ml-platform
+  app.kubernetes.io/version: v1.0.0
+
+commonAnnotations:
+  app.kubernetes.io/managed-by: kustomize
+  fraud.detection/project: fraud-model-rollout-demo

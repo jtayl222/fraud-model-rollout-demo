@@ -1,0 +1,33 @@
+apiVersion: networking.istio.io/v1beta1
+kind: Gateway
+metadata:
+  name: seldon-gateway
+  namespace: seldon-system
+spec:
+  selector:
+    istio: gateway
+  servers:
+  - port:
+      number: 80
+      name: http
+      protocol: HTTP
+    hosts:
+    - financial-predictor.local
+
+---
+apiVersion: networking.istio.io/v1beta1
+kind: VirtualService
+metadata:
+  name: seldon-vs
+  namespace: seldon-system
+spec:
+  hosts:
+  - financial-predictor.local
+  gateways:
+  - seldon-gateway
+  http:
+  - route:
+    - destination:
+        host: financial-ab-test-experiment
+        port:
+          number: 9000

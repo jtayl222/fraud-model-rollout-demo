@@ -1,0 +1,20 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: fraud-model-config
+  namespace: seldon-system
+data:
+  # Replace with actual S3 URIs from MLflow artifacts
+  # Example format: s3://mlflow-artifacts/{experiment_id}/models/{model_id}/artifacts
+  fraud-v1-storage-uri: "s3://your-mlflow-bucket/40/models/m-xxxxxxxxx/artifacts"
+  fraud-v2-storage-uri: "s3://your-mlflow-bucket/42/models/m-yyyyyyyyy/artifacts"
+  
+  # Traffic split configuration for A/B testing
+  traffic-split-baseline: "80"
+  traffic-split-candidate: "20"
+  
+  # Resource allocation for model serving
+  cpu-request: 250m
+  memory-request: 1Gi
+  cpu-limit: 500m
+  memory-limit: 2Gi

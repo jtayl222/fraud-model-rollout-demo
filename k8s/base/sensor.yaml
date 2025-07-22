@@ -1,0 +1,36 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Sensor
+metadata:
+  name: retraining-sensor
+  namespace: argo-events
+spec:
+  template:
+    serviceAccountName: argo-events-sa # Service account for Argo Events
+  dependencies:
+    - name: prometheus-alert-dependency
+      eventSource: prometheus-alerts
+      eventName: /alerts
+      # Example: filter for specific alert names or labels
+      # filters:
+      #   json:
+      #     - path: "body.alerts.labels.alertname"
+      #       type: "string"
+      #       value: "ModelPerformanceDegradation"
+  triggers:
+    - template:
+        name: trigger-training-workflow
+        argoWorkflow:
+          # Reference your training pipeline workflow
+          # This assumes training-pipeline.yaml is a WorkflowTemplate
+          # If it's a regular Workflow, you'd use spec: and provide the full workflow definition
+          source:
+            resource:
+              apiVersion: argoproj.io/v1alpha1
+              kind: WorkflowTemplate # Or Workflow
+              name: financial-predictor-training-template # If you defined it as a template
+              # If not a template, copy the full Workflow spec here or use a param for a generated name
+              # parameters: # Pass parameters from the event payload to the workflow if needed
+              # - src:
+              #     dependency: prometheus-alert-dependency
+              #     dataKey: "body.alerts[0].labels.alertname"
+              #   dest: "alert_name"

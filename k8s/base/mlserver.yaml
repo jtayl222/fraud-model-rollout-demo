@@ -1,0 +1,13 @@
+apiVersion: mlops.seldon.io/v1alpha1
+kind: Server
+metadata:
+  name: mlserver
+  namespace: seldon-system
+  labels:
+    app.kubernetes.io/name: seldon-system
+    app.kubernetes.io/part-of: ml-platform
+    app.kubernetes.io/managed-by: kustomize
+spec:
+  serverConfig: mlserver-config
+  capabilities: ["mlserver", "alibi-detect", "alibi-explain", "huggingface", "lightgbm", "mlflow", "python", "sklearn", "spark-mlib", "xgboost", "torch", "numpy"]
+  replicas: 1
