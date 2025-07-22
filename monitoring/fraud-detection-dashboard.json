@@ -1,0 +1,57 @@
+{
+  "dashboard": {
+    "title": "Fraud Detection A/B Test Monitoring",
+    "tags": [
+      "fraud-detection",
+      "ab-test",
+      "seldon"
+    ],
+    "time": {
+      "from": "now-1h",
+      "to": "now"
+    },
+    "refresh": "30s",
+    "panels": [
+      {
+        "title": "Model Request Rate",
+        "type": "graph",
+        "targets": [
+          {
+            "expr": "rate(seldon_model_requests_total[5m])",
+            "legendFormat": "{{model_name}}"
+          }
+        ]
+      },
+      {
+        "title": "A/B Traffic Split",
+        "type": "piechart",
+        "targets": [
+          {
+            "expr": "sum(rate(seldon_model_requests_total[5m])) by (model_name)",
+            "legendFormat": "{{model_name}}"
+          }
+        ]
+      },
+      {
+        "title": "Response Time (95th percentile)",
+        "type": "graph",
+        "targets": [
+          {
+            "expr": "histogram_quantile(0.95, seldon_model_request_duration_seconds_bucket)",
+            "legendFormat": "{{model_name}}"
+          }
+        ]
+      },
+      {
+        "title": "Error Rate",
+        "type": "graph",
+        "targets": [
+          {
+            "expr": "rate(seldon_model_requests_failed_total[5m])",
+            "legendFormat": "{{model_name}}"
+          }
+        ]
+      }
+    ]
+  }
+}

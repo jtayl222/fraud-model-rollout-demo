@@ -1,0 +1,50 @@
+
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: fraud-detection-alerts
+  namespace: seldon-system
+data:
+  fraud_detection_alerts.yml: |
+    groups:
+    - name: fraud_detection_alerts
+      rules:
+      - alert: FraudModelDown
+        expr: up{job="seldon-scheduler"} == 0
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Fraud detection model is down"
+          description: "Seldon scheduler has been down for more than 2 minutes"
+          
+      - alert: HighModelErrorRate
+        expr: rate(seldon_model_requests_failed_total[5m]) > 0.05
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High error rate in fraud detection model"
+          description: "Error rate is {{ $value }} for model {{ $labels.model_name }}"
+          
+      - alert: SlowModelResponse
+        expr: histogram_quantile(0.95, seldon_model_request_duration_seconds_bucket) > 1.0
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Slow response time for fraud detection"
+          description: "95th percentile response time is {{ $value }}s"
+          
+      - alert: ABTrafficImbalance
+        expr: |
+          abs(
+            (sum(rate(seldon_model_requests_total{model_name="fraud-v1-baseline"}[5m])) / 
+             sum(rate(seldon_model_requests_total[5m]))) - 0.8
+          ) > 0.15
+        for: 15m
+        labels:
+          severity: warning
+        annotations:
+          summary: "A/B traffic split is imbalanced"
+          description: "Traffic split deviates from expected 80/20"

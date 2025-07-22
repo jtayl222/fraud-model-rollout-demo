@@ -1,0 +1,15 @@
+# Core ML libraries
+tensorflow==2.12.0
+scikit-learn==1.3.0
+pandas==2.0.3
+numpy==1.24.3
+
+# MLflow for experiment tracking
+mlflow==2.8.1
+boto3==1.28.17
+
+# Kubernetes configuration
+PyYAML==6.0.1
+
+# Jupyter for notebooks
+jupyter==1.0.0

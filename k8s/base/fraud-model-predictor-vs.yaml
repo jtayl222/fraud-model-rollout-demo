@@ -12,7 +12,7 @@ spec:
       name: http
       protocol: HTTP
     hosts:
-    - financial-predictor.local
+    - fraud-detection.local
 
 ---
 apiVersion: networking.istio.io/v1beta1
@@ -22,12 +22,12 @@ metadata:
   namespace: seldon-system
 spec:
   hosts:
-  - financial-predictor.local
+  - fraud-detection.local
   gateways:
   - seldon-gateway
   http:
   - route:
     - destination:
-        host: financial-ab-test-experiment
+        host: fraud-ab-test-experiment
         port:
           number: 9000

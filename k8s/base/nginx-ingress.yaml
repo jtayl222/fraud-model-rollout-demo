@@ -52,7 +52,7 @@ spec:
   - host: ml-api.local
     http:
       paths:
-      # Financial inference models (Seldon Core)
+      # Fraud detection models (Seldon Core)
       - path: /seldon-system/(.*)
         pathType: ImplementationSpecific
         backend:
@@ -89,10 +89,10 @@ spec:
               number: 80
   
   # Additional host for A/B testing demo (host-based routing)
-  - host: financial-predictor.local
+  - host: fraud-detection.local
     http:
       paths:
-      # Financial inference models (Seldon Core) - direct v2 API
+      # Fraud detection models (Seldon Core) - direct v2 API
       - path: /v2/(.*)
         pathType: ImplementationSpecific
         backend:
