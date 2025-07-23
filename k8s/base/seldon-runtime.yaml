@@ -3,10 +3,10 @@ apiVersion: mlops.seldon.io/v1alpha1
 kind: SeldonRuntime
 metadata:
   name: fraud-mlops-runtime
-  namespace: seldon-system
+  namespace: fraud-detection
   labels:
     app.kubernetes.io/name: fraud-detection
-    app.kubernetes.io/part-of: ml-platform
+    app.kubernetes.io/part-of: fraud-detection-system
     app.kubernetes.io/managed-by: kustomize
 spec:
   config:
@@ -14,20 +14,11 @@ spec:
       rclone:
         config_secrets:
         - seldon-rclone-gs-public
-        - ml-platform
     kafkaConfig: {}
     serviceConfig: {}
     tracingConfig: {}
   overrides:
-  - name: hodometer
-    replicas: 1
-  - name: seldon-scheduler
-    replicas: 1
-    podSpec:
-      containers:
-      - name: scheduler
-        image: harbor.test/library/seldon-scheduler:2.9.1
-        imagePullPolicy: Always
+  # No scheduler override - use centralized scheduler from seldon-system
   - name: seldon-envoy
     replicas: 1
   - name: seldon-dataflow-engine

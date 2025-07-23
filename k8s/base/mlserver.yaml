@@ -2,10 +2,10 @@ apiVersion: mlops.seldon.io/v1alpha1
 kind: Server
 metadata:
   name: mlserver
-  namespace: seldon-system
+  namespace: fraud-detection
   labels:
-    app.kubernetes.io/name: seldon-system
-    app.kubernetes.io/part-of: ml-platform
+    app.kubernetes.io/name: fraud-detection
+    app.kubernetes.io/part-of: fraud-detection-system
     app.kubernetes.io/managed-by: kustomize
 spec:
   serverConfig: mlserver-config

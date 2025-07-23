@@ -1,0 +1,62 @@
+---
+# Endpoints pointing directly to fraud-detection ClusterIP
+apiVersion: v1
+kind: Endpoints
+metadata:
+  name: seldon-mesh
+  namespace: ingress-nginx
+  labels:
+    app.kubernetes.io/name: fraud-detection
+    app.kubernetes.io/part-of: fraud-detection-system
+    app.kubernetes.io/managed-by: kustomize
+subsets:
+- addresses:
+  - ip: 10.43.146.45  # ClusterIP of seldon-mesh.fraud-detection
+  ports:
+  - port: 9000  # Correct port - seldon-mesh data port
+    protocol: TCP
+
+---
+# Headless service for nginx ingress backend
+apiVersion: v1
+kind: Service
+metadata:
+  name: seldon-mesh
+  namespace: ingress-nginx
+  labels:
+    app.kubernetes.io/name: fraud-detection
+    app.kubernetes.io/part-of: fraud-detection-system
+    app.kubernetes.io/managed-by: kustomize
+spec:
+  clusterIP: None  # headless
+  ports:
+  - port: 80
+    targetPort: 9000  # Route to seldon-mesh data port
+    protocol: TCP
+
+---
+# Updated ingress without regex rewrite to preserve /v2/ path
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: fraud-detection-ingress
+  namespace: ingress-nginx
+  annotations:
+    nginx.ingress.kubernetes.io/cors-allow-headers: "Authorization, Content-Type"
+    nginx.ingress.kubernetes.io/cors-allow-methods: "GET, POST, PUT, DELETE, OPTIONS"
+    nginx.ingress.kubernetes.io/cors-allow-origin: "*"
+    nginx.ingress.kubernetes.io/service-upstream: "true"
+    nginx.ingress.kubernetes.io/ssl-redirect: "false"
+spec:
+  ingressClassName: nginx
+  rules:
+  - host: fraud-detection.local
+    http:
+      paths:
+      - path: /v2
+        pathType: Prefix
+        backend:
+          service:
+            name: seldon-mesh
+            port:
+              number: 80

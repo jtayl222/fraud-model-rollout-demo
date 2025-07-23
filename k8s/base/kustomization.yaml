@@ -1,6 +1,8 @@
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 
+namespace: fraud-detection
+
 metadata:
   name: fraud-detection-base
   annotations:
@@ -18,8 +20,10 @@ resources:
   
   # RBAC
   - rbac.yaml
+  - seldon-controller-rbac.yaml
   
   # Seldon Core Configuration
+  - seldon-runtime.yaml
   - server-config-scoped.yaml
   - mlserver.yaml
   
@@ -28,7 +32,7 @@ resources:
   
   # Networking (if needed)
   - fraud-model-predictor-vs.yaml
-  - nginx-ingress.yaml
+  # - nginx-ingress.yaml  # Commented out to avoid conflicts with existing ingress
   - network-policy.yaml
   
   # Event-driven workflows
@@ -64,10 +68,11 @@ replacements:
     - spec.storageUri
 
 
-commonLabels:
-  app.kubernetes.io/name: fraud-detection
-  app.kubernetes.io/part-of: ml-platform
-  app.kubernetes.io/version: v1.0.0
+labels:
+- pairs:
+    app.kubernetes.io/name: fraud-detection
+    app.kubernetes.io/part-of: fraud-detection-system
+    app.kubernetes.io/version: v1.0.0
 
 commonAnnotations:
   app.kubernetes.io/managed-by: kustomize

@@ -2,7 +2,7 @@ apiVersion: v1
 kind: ConfigMap
 metadata:
   name: fraud-detection-prometheus
-  namespace: seldon-system
+  namespace: fraud-detection
 data:
   prometheus.yml: |
     {
@@ -30,7 +30,7 @@ data:
                         "role": "service",
                         "namespaces": {
                             "names": [
-                                "seldon-system"
+                                "fraud-detection"
                             ]
                         }
                     }

@@ -2,7 +2,7 @@ apiVersion: argoproj.io/v1alpha1
 kind: WorkflowTemplate
 metadata:
   name: fraud-data-pipeline-template
-  namespace: seldon-system
+  namespace: fraud-detection
 spec:
   entrypoint: data-ingestion-and-feature-engineering
   serviceAccountName: argo-workflow-sa

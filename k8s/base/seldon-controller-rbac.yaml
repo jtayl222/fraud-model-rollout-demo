@@ -1,0 +1,48 @@
+---
+# Role for Seldon Controller to manage resources in fraud-detection namespace
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: seldon-controller-role
+  namespace: fraud-detection
+  labels:
+    app.kubernetes.io/name: fraud-detection
+    app.kubernetes.io/part-of: fraud-detection-system
+    app.kubernetes.io/managed-by: kustomize
+rules:
+# Seldon Core resources
+- apiGroups: ["mlops.seldon.io"]
+  resources: ["models", "servers", "experiments", "seldonruntimes", "serverconfigs"]
+  verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+# Kubernetes core resources needed by controller
+- apiGroups: [""]
+  resources: ["pods", "services", "configmaps", "secrets", "events"]
+  verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+# Deployments and ReplicaSets for MLServer pods
+- apiGroups: ["apps"]
+  resources: ["deployments", "replicasets"]
+  verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+# Service monitoring
+- apiGroups: [""]
+  resources: ["endpoints"]
+  verbs: ["get", "list", "watch"]
+
+---
+# RoleBinding for Seldon Controller from seldon-system namespace
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: seldon-controller-rolebinding
+  namespace: fraud-detection
+  labels:
+    app.kubernetes.io/name: fraud-detection
+    app.kubernetes.io/part-of: fraud-detection-system
+    app.kubernetes.io/managed-by: kustomize
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: seldon-controller-role
+subjects:
+- kind: ServiceAccount
+  name: seldon-v2-controller-manager
+  namespace: seldon-system

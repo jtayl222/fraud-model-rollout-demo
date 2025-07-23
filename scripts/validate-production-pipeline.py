@@ -128,6 +128,8 @@ class FraudDetectionService:
             response = requests.post(url, json=payload, headers=headers, timeout=10)
             inference_time = time.time() - start_time
             
+            print(f"   Debug: HTTP {response.status_code}, Response: {response.text[:100]}...")
+            
             if response.status_code == 200:
                 result = response.json()
                 

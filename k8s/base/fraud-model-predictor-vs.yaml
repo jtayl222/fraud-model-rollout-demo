@@ -2,7 +2,7 @@ apiVersion: networking.istio.io/v1beta1
 kind: Gateway
 metadata:
   name: seldon-gateway
-  namespace: seldon-system
+  namespace: fraud-detection
 spec:
   selector:
     istio: gateway
@@ -19,7 +19,7 @@ apiVersion: networking.istio.io/v1beta1
 kind: VirtualService
 metadata:
   name: seldon-vs
-  namespace: seldon-system
+  namespace: fraud-detection
 spec:
   hosts:
   - fraud-detection.local

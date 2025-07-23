@@ -1,0 +1,36 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: fraud-detection
+
+resources:
+  - namespace.yaml
+  - serverconfig.yaml
+  - models.yaml
+  - experiment.yaml
+  - rbac.yaml
+  - network-policy.yaml
+  - monitoring.yaml
+
+configMapGenerator:
+  - name: model-config
+    files:
+      - config/models.json
+
+secretGenerator:
+  - name: s3-credentials
+    envs:
+      - secrets/s3.env
+
+images:
+  - name: mlserver
+    newName: seldonio/mlserver
+    newTag: 1.3.5-slim
+
+patchesStrategicMerge:
+  - patches/resource-limits.yaml
+
+commonLabels:
+  app.kubernetes.io/name: fraud-detection
+  app.kubernetes.io/part-of: fraud-detection-system
+  app.kubernetes.io/managed-by: kustomize
