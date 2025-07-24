@@ -1,16 +1,16 @@
 ---
-# Cross-namespace service reference for seldon-system
+# Cross-namespace service reference for fraud-detection namespace
 apiVersion: v1
 kind: Service
 metadata:
-  name: seldon-system-seldon
-  namespace: ingress-nginx
+  name: fraud-detection-seldon
+  namespace: fraud-detection
 spec:
   type: ExternalName
-  externalName: seldon-mesh.seldon-system.svc.cluster.local
+  externalName: mlserver.fraud-detection.svc.cluster.local
   ports:
-  - port: 80
-    targetPort: 80
+  - port: 9000
+    targetPort: 9000
     protocol: TCP
 ---
 # Cross-namespace service reference for MLflow (if needed)
@@ -27,12 +27,12 @@ spec:
     targetPort: 5000
     protocol: TCP
 ---
-# Main Ingress resource for MLOps services
+# Main Ingress resource for Fraud Detection models
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
-  name: mlops-ingress
-  namespace: ingress-nginx
+  name: fraud-detection-ingress
+  namespace: fraud-detection
   annotations:
     # NGINX specific annotations
     nginx.ingress.kubernetes.io/use-regex: "true"
@@ -53,40 +53,14 @@ spec:
     http:
       paths:
       # Fraud detection models (Seldon Core)
-      - path: /seldon-system/(.*)
+      - path: /fraud-detection/(.*)
         pathType: ImplementationSpecific
         backend:
           service:
-            name: seldon-system-seldon
+            name: fraud-detection-seldon
             port:
-              number: 80
+              number: 9000
       
-      # MLflow experiment tracking
-      - path: /mlflow/(.*)
-        pathType: ImplementationSpecific
-        backend:
-          service:
-            name: mlflow-external
-            port:
-              number: 5000
-      
-      # Future: Trading models namespace
-      - path: /trading-models/(.*)
-        pathType: ImplementationSpecific
-        backend:
-          service:
-            name: seldon-system-seldon  # Placeholder for now
-            port:
-              number: 80
-      
-      # Future: Risk analysis namespace  
-      - path: /risk-analysis/(.*)
-        pathType: ImplementationSpecific
-        backend:
-          service:
-            name: seldon-system-seldon  # Placeholder for now
-            port:
-              number: 80
   
   # Additional host for A/B testing demo (host-based routing)
   - host: fraud-detection.local
@@ -97,6 +71,6 @@ spec:
         pathType: ImplementationSpecific
         backend:
           service:
-            name: seldon-system-seldon
+            name: fraud-detection-seldon
             port:
-              number: 80
+              number: 9000

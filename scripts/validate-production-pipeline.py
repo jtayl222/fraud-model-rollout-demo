@@ -21,10 +21,12 @@ import time
 from typing import Dict, List, Tuple, Optional
 
 # Configuration
-SELDON_ENDPOINT = "http://192.168.1.202"
+# Use seldon-mesh LoadBalancer directly instead of Istio gateway
+SELDON_ENDPOINT = "http://192.168.1.212"  # seldon-mesh LoadBalancer IP
 HOST_HEADER = "fraud-detection.local"
 
 # Model thresholds (from threshold tuning analysis)
+# Use Seldon resource names, not MLServer internal names
 OPTIMAL_THRESHOLDS = {
     "fraud-v1-baseline": 0.5,     # Conservative baseline
     "fraud-v2-candidate": 0.9     # Optimized for 95%+ precision, 100% recall
@@ -125,8 +127,23 @@ class FraudDetectionService:
                 "Host": HOST_HEADER
             }
             
-            response = requests.post(url, json=payload, headers=headers, timeout=10)
-            inference_time = time.time() - start_time
+            print(f"   Debug: Sending request to {url}")
+            print(f"   Debug: Headers: {headers}")
+            print(f"   Debug: Payload shape: {payload['inputs'][0]['shape']}")
+            
+            try:
+                response = requests.post(url, json=payload, headers=headers, timeout=10)
+                inference_time = time.time() - start_time
+                
+                print(f"   Debug: HTTP {response.status_code}, Response: {response.text[:200]}...")
+            except Exception as req_error:
+                inference_time = time.time() - start_time
+                print(f"   Debug: Request failed: {str(req_error)}")
+                return {
+                    "status": "error",
+                    "error": f"Request failed: {str(req_error)}",
+                    "inference_time_ms": inference_time * 1000
+                }
             
             if response.status_code == 200:
                 result = response.json()
@@ -180,7 +197,7 @@ class FraudDetectionService:
         print(f"   Amount: ${transaction_data.get('Amount', 0):.2f}")
         print(f"   Time: {transaction_data.get('Time', 0)}")
         
-        # Test both models
+        # Test both models (using Seldon resource names)
         baseline_result = self.predict_fraud(transaction_data, "fraud-v1-baseline")
         candidate_result = self.predict_fraud(transaction_data, "fraud-v2-candidate")
         

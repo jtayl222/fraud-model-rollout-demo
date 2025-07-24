@@ -1,5 +1,5 @@
 
-# Application-Level Network Policy for seldon-system namespace
+# Application-Level Network Policy for fraud-detection namespace
 # 
 # SCOPE: This policy manages application-specific networking rules within our namespace.
 # COORDINATION: Cross-namespace and cluster-wide policies are managed by Platform Team.
@@ -9,10 +9,10 @@ apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
   name: financial-mlops-app-policy
-  namespace: seldon-system
+  namespace: fraud-detection
   annotations:
     policy.scope: "application-level"
-    managed.by: "seldon-system-team"
+    managed.by: "fraud-detection-team"
     coordination.required: "platform-team"
 spec:
   podSelector: {}
@@ -24,12 +24,12 @@ spec:
   - from:
     - namespaceSelector:
         matchLabels:
-          name: seldon-system
-  # Allow traffic from seldon-system for model management
+          name: fraud-detection
+  # Allow traffic from seldon-system for Seldon Core operators
   - from:
     - namespaceSelector:
         matchLabels:
-          kubernetes.io/metadata.name: seldon-system
+          name: seldon-system
     ports:
     - protocol: TCP
       port: 9002
@@ -47,7 +47,7 @@ spec:
   - from:
     - namespaceSelector:
         matchLabels:
-          name: seldon-system
+          name: fraud-detection
   # Allow traffic from NGINX Ingress for cross-namespace routing
   - from:
     - namespaceSelector:
@@ -67,17 +67,17 @@ spec:
   - to:
     - namespaceSelector:
         matchLabels:
-          name: seldon-system
-  # Allow communication to seldon-system for runtime operations
+          name: fraud-detection
+  # Allow communication to seldon-system for scheduler and runtime operations
   - to:
     - namespaceSelector:
         matchLabels:
-          kubernetes.io/metadata.name: seldon-system
+          name: seldon-system
   # Allow intra-namespace communication
   - to:
     - namespaceSelector:
         matchLabels:
-          name: seldon-system
+          name: fraud-detection
   - to:
     - podSelector: {} # Selects all pods in the current namespace
     ports:
@@ -133,6 +133,17 @@ spec:
   - to: []
     ports:
     - protocol: TCP
-      port: 4317  # OpenTelemetry gRPC
+      port: 4317
     - protocol: TCP
-      port: 4318  # OpenTelemetry HTTP
+      port: 4318
+  # Allow communication to istiod for sidecar certificate signing
+  - to:
+    - namespaceSelector:
+        matchLabels:
+          kubernetes.io/metadata.name: istio-system
+      podSelector:
+        matchLabels:
+          app: istiod
+    ports:
+    - protocol: TCP
+      port: 15012

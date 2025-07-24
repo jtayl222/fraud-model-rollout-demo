@@ -4,10 +4,10 @@ apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
   name: fraud-raw-data-pvc
-  namespace: seldon-system
+  namespace: fraud-detection
   labels:
     app.kubernetes.io/name: fraud-detection
-    app.kubernetes.io/part-of: ml-platform
+    app.kubernetes.io/part-of: fraud-detection-system
     app.kubernetes.io/component: data-storage
 spec:
   accessModes:
@@ -22,10 +22,10 @@ apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
   name: fraud-enriched-data-pvc
-  namespace: seldon-system
+  namespace: fraud-detection
   labels:
     app.kubernetes.io/name: fraud-detection
-    app.kubernetes.io/part-of: ml-platform
+    app.kubernetes.io/part-of: fraud-detection-system
     app.kubernetes.io/component: feature-storage
 spec:
   accessModes:
@@ -40,10 +40,10 @@ apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
   name: fraud-models-pvc
-  namespace: seldon-system
+  namespace: fraud-detection
   labels:
     app.kubernetes.io/name: fraud-detection
-    app.kubernetes.io/part-of: ml-platform
+    app.kubernetes.io/part-of: fraud-detection-system
     app.kubernetes.io/component: model-storage
 spec:
   accessModes:
