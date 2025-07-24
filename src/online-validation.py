@@ -30,8 +30,9 @@ import threading
 from collections import deque
 import warnings
 
-# Configuration
-SELDON_ENDPOINT = "http://192.168.1.202"
+# Configuration - Updated for Pattern 3
+# Use seldon-mesh LoadBalancer directly instead of Istio gateway
+SELDON_ENDPOINT = "http://192.168.1.212"  # seldon-mesh LoadBalancer IP
 HOST_HEADER = "fraud-detection.local"
 FEEDBACK_DELAY_MINUTES = 15  # Simulate real-world feedback delay
 
@@ -416,13 +417,13 @@ class OnlineValidator:
             if i % 10 == 0:
                 self.logger.info(f"Processing transaction {i+1}/{len(test_transactions)}")
             
-            # Send to baseline model
+            # Send to baseline model (using Seldon resource name, not MLServer internal name)
             baseline_result = self.send_test_transaction(transaction, "fraud-v1-baseline")
             if baseline_result:
                 baseline_result.feedback_received = True  # Immediate feedback for testing
                 baseline_results.append(baseline_result)
             
-            # Send to candidate model
+            # Send to candidate model (using Seldon resource name, not MLServer internal name)
             candidate_result = self.send_test_transaction(transaction, "fraud-v2-candidate")
             if candidate_result:
                 candidate_result.feedback_received = True  # Immediate feedback for testing

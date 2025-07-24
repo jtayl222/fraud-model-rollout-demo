@@ -23,7 +23,8 @@ resources:
   - seldon-controller-rbac.yaml
   
   # Seldon Core Configuration
-  # Pattern 3: ServerConfig moved to seldon-system (apply server-config-centralized.yaml separately)
+  # Pattern 3: ServerConfig in seldon-system namespace
+  - server-config-centralized.yaml
   # Pattern 3: Runtime deployed via Helm (see runtime-pattern3.yaml for instructions)
   # - seldon-runtime.yaml  # Not used in Pattern 3
   # - server-config-scoped.yaml  # Not used in Pattern 3

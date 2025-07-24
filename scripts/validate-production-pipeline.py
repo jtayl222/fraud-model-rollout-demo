@@ -21,10 +21,12 @@ import time
 from typing import Dict, List, Tuple, Optional
 
 # Configuration
-SELDON_ENDPOINT = "http://192.168.1.202"
+# Use seldon-mesh LoadBalancer directly instead of Istio gateway
+SELDON_ENDPOINT = "http://192.168.1.212"  # seldon-mesh LoadBalancer IP
 HOST_HEADER = "fraud-detection.local"
 
 # Model thresholds (from threshold tuning analysis)
+# Use Seldon resource names, not MLServer internal names
 OPTIMAL_THRESHOLDS = {
     "fraud-v1-baseline": 0.5,     # Conservative baseline
     "fraud-v2-candidate": 0.9     # Optimized for 95%+ precision, 100% recall
@@ -195,7 +197,7 @@ class FraudDetectionService:
         print(f"   Amount: ${transaction_data.get('Amount', 0):.2f}")
         print(f"   Time: {transaction_data.get('Time', 0)}")
         
-        # Test both models
+        # Test both models (using Seldon resource names)
         baseline_result = self.predict_fraud(transaction_data, "fraud-v1-baseline")
         candidate_result = self.predict_fraud(transaction_data, "fraud-v2-candidate")
         
