@@ -1,4 +1,9 @@
 ---
+# Pattern 3: This SeldonRuntime resource is NOT used in Pattern 3
+# Instead, runtime components are deployed via Helm chart
+# See runtime-pattern3.yaml for deployment instructions
+#
+# This file is kept for reference but should be excluded from kustomization.yaml
 apiVersion: mlops.seldon.io/v1alpha1
 kind: SeldonRuntime
 metadata:
@@ -18,7 +23,8 @@ spec:
     serviceConfig: {}
     tracingConfig: {}
   overrides:
-  # No scheduler override - use centralized scheduler from seldon-system
+  - name: seldon-scheduler
+    replicas: 1  # Pattern 3: Each namespace has its own scheduler
   - name: seldon-envoy
     replicas: 1
   - name: seldon-dataflow-engine
@@ -27,8 +33,6 @@ spec:
     replicas: 1
   - name: seldon-pipelinegateway
     replicas: 0
-  - name: mlserver
-    replicas: 1
   scheduler:
-    enabled: false
+    enabled: true  # Pattern 3: Scheduler enabled in each namespace
   seldonConfig: default

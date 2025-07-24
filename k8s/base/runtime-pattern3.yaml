@@ -1,0 +1,29 @@
+---
+# Pattern 3: Runtime components deployment instructions
+# 
+# For Pattern 3, the runtime components (scheduler, envoy, gateways) are deployed
+# to each application namespace using the seldon-core-v2-runtime helm chart.
+#
+# Deployment command:
+# helm install seldon-core-v2-runtime seldon-core-v2-runtime \
+#   --repo https://storage.googleapis.com/seldon-charts \
+#   --version 2.9.1 \
+#   --namespace fraud-detection \
+#   --set seldonRuntime.seldonConfig=default \
+#   --set seldonRuntime.scheduler.enabled=true \
+#   --set image.pullSecrets[0].name=harbor \
+#   --set image.registry=harbor.test/library
+#
+# Note: This file is for documentation only and is not a Kubernetes resource.
+# The actual runtime deployment is handled by Helm, not Kustomize.
+#
+# Runtime components that will be deployed:
+# - seldon-scheduler (in fraud-detection namespace)
+# - seldon-envoy (envoy mesh)
+# - seldon-modelgateway
+# - seldon-pipelinegateway (if needed)
+# - seldon-dataflow-engine (if needed)
+#
+# After deployment, verify with:
+# kubectl get pods -n fraud-detection
+# kubectl get svc -n fraud-detection
