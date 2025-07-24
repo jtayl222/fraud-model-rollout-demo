@@ -125,10 +125,23 @@ class FraudDetectionService:
                 "Host": HOST_HEADER
             }
             
-            response = requests.post(url, json=payload, headers=headers, timeout=10)
-            inference_time = time.time() - start_time
+            print(f"   Debug: Sending request to {url}")
+            print(f"   Debug: Headers: {headers}")
+            print(f"   Debug: Payload shape: {payload['inputs'][0]['shape']}")
             
-            print(f"   Debug: HTTP {response.status_code}, Response: {response.text[:100]}...")
+            try:
+                response = requests.post(url, json=payload, headers=headers, timeout=10)
+                inference_time = time.time() - start_time
+                
+                print(f"   Debug: HTTP {response.status_code}, Response: {response.text[:200]}...")
+            except Exception as req_error:
+                inference_time = time.time() - start_time
+                print(f"   Debug: Request failed: {str(req_error)}")
+                return {
+                    "status": "error",
+                    "error": f"Request failed: {str(req_error)}",
+                    "inference_time_ms": inference_time * 1000
+                }
             
             if response.status_code == 200:
                 result = response.json()

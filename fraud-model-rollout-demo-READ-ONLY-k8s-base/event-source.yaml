@@ -1,0 +1,15 @@
+apiVersion: argoproj.io/v1alpha1
+kind: EventSource
+metadata:
+  name: prometheus-alerts
+  namespace: argo-events # Or your specific namespace
+spec:
+  service:
+    ports:
+    - port: 12000
+      targetPort: 12000
+  webhook:
+    /alerts: # Endpoint for Prometheus Alertmanager to send alerts
+      method: POST
+      port: "12000"
+      url: "http://argoevent-webhook-service.argo-events.svc.cluster.local:12000/alerts" # If internal, use service FQDN
