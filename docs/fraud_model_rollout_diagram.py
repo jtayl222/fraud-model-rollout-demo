@@ -11,10 +11,20 @@ from diagrams.custom import Custom
 
 TENSORFLOW_ICON_PATH = "./images/tensorflow_logo.png"
 
-with Diagram("Fraud Model Rollout Architecture", show=False, filename="fraud_model_rollout_diagram"):
+with Diagram(
+    "Fraud Model Rollout Architecture",
+    show=False,
+    filename="fraud_model_rollout_diagram",
+):
     # Data source
-    kaggle = Custom("Kaggle Fraud Dataset", "https://cdn-icons-png.flaticon.com/512/3135/3135715.png")
-    enriched = Custom("Enriched Dataset\n(~1M rows)", "https://cdn-icons-png.flaticon.com/512/3135/3135715.png")
+    kaggle = Custom(
+        "Kaggle Fraud Dataset",
+        "https://cdn-icons-png.flaticon.com/512/3135/3135715.png",
+    )
+    enriched = Custom(
+        "Enriched Dataset\n(~1M rows)",
+        "https://cdn-icons-png.flaticon.com/512/3135/3135715.png",
+    )
 
     with Cluster("Training Phase"):
         baseline = Custom("Baseline v1\n(2023 data)", TENSORFLOW_ICON_PATH)
@@ -22,7 +32,10 @@ with Diagram("Fraud Model Rollout Architecture", show=False, filename="fraud_mod
 
         # baseline = TensorflowOnAWS("Baseline v1\n(2023 data)")
         # candidate = TensorflowOnAWS("Candidate v2\n(2023+Q1 2024 data)")
-        holdout = Custom("Holdout Test\nFeb–Mar 2024", "https://cdn-icons-png.flaticon.com/512/906/906334.png")
+        holdout = Custom(
+            "Holdout Test\nFeb–Mar 2024",
+            "https://cdn-icons-png.flaticon.com/512/906/906334.png",
+        )
 
     with Cluster("Kubernetes Cluster"):
         seldon_ab = Helm("Seldon Core\nA/B Deployment")
@@ -39,7 +52,9 @@ with Diagram("Fraud Model Rollout Architecture", show=False, filename="fraud_mod
     db = SQL("Feedback DB")
 
     # Promotion decision
-    decision = Custom("Promotion Decision", "https://cdn-icons-png.flaticon.com/512/992/992700.png")
+    decision = Custom(
+        "Promotion Decision", "https://cdn-icons-png.flaticon.com/512/992/992700.png"
+    )
 
     # Connections
     kaggle >> enriched >> [baseline, candidate]

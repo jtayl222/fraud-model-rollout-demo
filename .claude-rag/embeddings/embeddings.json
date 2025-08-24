@@ -1,0 +1,407 @@
+{
+  "docs/Phase-06-Monitoring-Setup.md": {
+    "text_hash": "c0fed977e6f8a53555d1a665f474d5cc",
+    "model_name": "all-MiniLM-L6-v2",
+    "computed_at": "2025-08-24T16:20:18.882430"
+  },
+  "k8s/base/prometheus-config.yaml": {
+    "text_hash": "bac69d122260ed80cde7fb945370dbe5",
+    "model_name": "all-MiniLM-L6-v2",
+    "computed_at": "2025-08-24T16:20:18.912928"
+  },
+  "docs/Phase-10-GitOps-MLOps-Integration.md": {
+    "text_hash": "e029a52c522cb7675ca033e524c8303c",
+    "model_name": "all-MiniLM-L6-v2",
+    "computed_at": "2025-08-24T16:20:18.956395"
+  },
+  "fraud_ab_testing_demo/data/splits/train_v2.csv": {
+    "text_hash": "bb5031adb842d3016fc7cc01addcd542",
+    "model_name": "all-MiniLM-L6-v2",
+    "computed_at": "2025-08-24T16:20:27.502260"
+  },
+  "docs/Phase-04-Offline-Validation.md": {
+    "text_hash": "749a8705faa55ddb026f7b27c799da54",
+    "model_name": "all-MiniLM-L6-v2",
+    "computed_at": "2025-08-24T16:20:27.558581"
+  },
+  "monitoring/fraud-detection-dashboard.json": {
+    "text_hash": "7bc6d9b53b10e0ae63207df3167c09f1",
+    "model_name": "all-MiniLM-L6-v2",
+    "computed_at": "2025-08-24T16:20:27.588697"
+  },
+  "k8s/base/mlserver.yaml": {
+    "text_hash": "90bca604690061709d3fedaa4408b6cd",
+    "model_name": "all-MiniLM-L6-v2",
+    "computed_at": "2025-08-24T16:20:27.612597"
+  },
+  "docs/JSON-Format-Solution.md": {
+    "text_hash": "17d6bb0177ff9d953613e3acf84def08",
+    "model_name": "all-MiniLM-L6-v2",
+    "computed_at": "2025-08-24T16:20:27.646157"
+  },
+  "src/data.py": {
+    "text_hash": "729095ad45802b8c4dcaf840bed077a0",
+    "model_name": "all-MiniLM-L6-v2",
+    "computed_at": "2025-08-24T16:20:27.679488"
+  },
+  "docs/Phase-Summary.md": {
+    "text_hash": "1b86a75cf0a7957c2b4e7f72056808a5",
+    "model_name": "all-MiniLM-L6-v2",
+    "computed_at": "2025-08-24T16:20:27.713007"
+  },
+  "CLAUDE.md": {
+    "text_hash": "2ea865930696bc7c209f9f3165484934",
+    "model_name": "all-MiniLM-L6-v2",
+    "computed_at": "2025-08-24T16:20:27.746649"
+  },
+  "src/candidate.py": {
+    "text_hash": "c79c0d45854dcfabfbf2a180ec0ff109",
+    "model_name": "all-MiniLM-L6-v2",
+    "computed_at": "2025-08-24T16:20:27.780068"
+  },
+  "k8s/base/fraud-model-pvc.yaml": {
+    "text_hash": "dc0554e1d7caf0717f4e004fd29190b3",
+    "model_name": "all-MiniLM-L6-v2",
+    "computed_at": "2025-08-24T16:20:27.811753"
+  },
+  "docs/migration-main-to-pattern3.md": {
+    "text_hash": "3aba4eecf75cf890ac2fc06071f9dd65",
+    "model_name": "all-MiniLM-L6-v2",
+    "computed_at": "2025-08-24T16:20:27.855938"
+  },
+  "scripts/setup-monitoring.py": {
+    "text_hash": "bd40a81d4dfa34fbd83467654ed9f482",
+    "model_name": "all-MiniLM-L6-v2",
+    "computed_at": "2025-08-24T16:20:27.898737"
+  },
+  "k8s/base/seldon-runtime.yaml": {
+    "text_hash": "933950a16a1fd4436d8ebe8760cc4b45",
+    "model_name": "all-MiniLM-L6-v2",
+    "computed_at": "2025-08-24T16:20:27.929057"
+  },
+  "Details-01.md": {
+    "text_hash": "e6cb970f6ee6fc50305117c7a70aa21b",
+    "model_name": "all-MiniLM-L6-v2",
+    "computed_at": "2025-08-24T16:20:27.962341"
+  },
+  "docs/Phase-11-Scoped-Operator-Pattern.md": {
+    "text_hash": "cdf20aaf3f3c05807e9eca5657d35dce",
+    "model_name": "all-MiniLM-L6-v2",
+    "computed_at": "2025-08-24T16:20:27.995543"
+  },
+  "docs/Phase-07-Model-Promotion-or-Rollback.md": {
+    "text_hash": "f9f2bec2e15c60b60d4276bc83a35287",
+    "model_name": "all-MiniLM-L6-v2",
+    "computed_at": "2025-08-24T16:20:28.028692"
+  },
+  "docs/best-architecture.md": {
+    "text_hash": "a90f77fd705712499184ea4d241327ef",
+    "model_name": "all-MiniLM-L6-v2",
+    "computed_at": "2025-08-24T16:20:28.061786"
+  },
+  "k8s/base/default-sa-patch.yaml": {
+    "text_hash": "b10f8fe4ad9e0077a56c79b6cfd5406c",
+    "model_name": "all-MiniLM-L6-v2",
+    "computed_at": "2025-08-24T16:20:28.070395"
+  },
+  "k8s/base/fraud-model-data-pipeline.yaml": {
+    "text_hash": "04402dcee36c32e249d1cfe86e41cbea",
+    "model_name": "all-MiniLM-L6-v2",
+    "computed_at": "2025-08-24T16:20:28.101968"
+  },
+  "k8s/base/fraud-model-predictor-vs.yaml": {
+    "text_hash": "ecef624328494b4c364751e23a3b46c0",
+    "model_name": "all-MiniLM-L6-v2",
+    "computed_at": "2025-08-24T16:20:28.120928"
+  },
+  "cleanup-branch.sh": {
+    "text_hash": "e7e32eee07d9798d44f082ed3ca9dde9",
+    "model_name": "all-MiniLM-L6-v2",
+    "computed_at": "2025-08-24T16:20:28.151635"
+  },
+  "src/offline-validation.py": {
+    "text_hash": "fffa9d803f56ebfdc16f249da5af9167",
+    "model_name": "all-MiniLM-L6-v2",
+    "computed_at": "2025-08-24T16:20:28.185189"
+  },
+  "src/baseline.py": {
+    "text_hash": "c41bef7d4ec1592bb15f170980f292a9",
+    "model_name": "all-MiniLM-L6-v2",
+    "computed_at": "2025-08-24T16:20:28.218330"
+  },
+  "README.md": {
+    "text_hash": "0cd1347faadbd61b9ed85bad359e548f",
+    "model_name": "all-MiniLM-L6-v2",
+    "computed_at": "2025-08-24T16:20:28.252728"
+  },
+  "src/train_model.py": {
+    "text_hash": "e8b8de35082abbfdc88d769579e837de",
+    "model_name": "all-MiniLM-L6-v2",
+    "computed_at": "2025-08-24T16:20:28.285610"
+  },
+  "docs/Phase-00-Project-Overview.md": {
+    "text_hash": "ac8eb6db67683e546754158c78711443",
+    "model_name": "all-MiniLM-L6-v2",
+    "computed_at": "2025-08-24T16:20:28.319013"
+  },
+  "fraud_ab_testing_demo/data/splits/train_v1.csv": {
+    "text_hash": "49d12a8f2ca210eb55d56e0e3e94bd93",
+    "model_name": "all-MiniLM-L6-v2",
+    "computed_at": "2025-08-24T16:20:34.594391"
+  },
+  "docs/Phase-01-Dataset.md": {
+    "text_hash": "f13a0af1bbf5cdef7b8fee55b1182ffe",
+    "model_name": "all-MiniLM-L6-v2",
+    "computed_at": "2025-08-24T16:20:34.682738"
+  },
+  "scripts/update-model-config.py": {
+    "text_hash": "d28be7348e3ba19199e9518819450c14",
+    "model_name": "all-MiniLM-L6-v2",
+    "computed_at": "2025-08-24T16:20:34.714907"
+  },
+  "docs/MLServer-Model-Interaction.md": {
+    "text_hash": "7299a803ac295ba9022cd647f0398aa2",
+    "model_name": "all-MiniLM-L6-v2",
+    "computed_at": "2025-08-24T16:20:34.747979"
+  },
+  "k8s/base/README.md": {
+    "text_hash": "4b699d688e39b2382b0046ddd4bf9716",
+    "model_name": "all-MiniLM-L6-v2",
+    "computed_at": "2025-08-24T16:20:34.780083"
+  },
+  "k8s/base/pattern3-deployment-guide.md": {
+    "text_hash": "723ad636614f12ae312e59187228008a",
+    "model_name": "all-MiniLM-L6-v2",
+    "computed_at": "2025-08-24T16:20:34.811319"
+  },
+  "k8s/base/network-policy.yaml": {
+    "text_hash": "25cff0c961d5a8cccc3b56a12505eb6b",
+    "model_name": "all-MiniLM-L6-v2",
+    "computed_at": "2025-08-24T16:20:34.844234"
+  },
+  "docs/status.md": {
+    "text_hash": "13f535d0390081539fe92ce6e7f4cf53",
+    "model_name": "all-MiniLM-L6-v2",
+    "computed_at": "2025-08-24T16:20:34.878322"
+  },
+  "src/threshold-tuning.py": {
+    "text_hash": "46555b61c7be0f640f6fe851e9ad38a5",
+    "model_name": "all-MiniLM-L6-v2",
+    "computed_at": "2025-08-24T16:20:34.911157"
+  },
+  "docs/Phase-06-Online-Monitoring.md": {
+    "text_hash": "3f2d9ceacc0c8cb8177d036312b2523b",
+    "model_name": "all-MiniLM-L6-v2",
+    "computed_at": "2025-08-24T16:20:34.945118"
+  },
+  "docs/Phase-02-Baseline.md": {
+    "text_hash": "cee155660db35ba14d00d633669eee26",
+    "model_name": "all-MiniLM-L6-v2",
+    "computed_at": "2025-08-24T16:20:34.978165"
+  },
+  "fraud_ab_testing_demo/data/enriched/fraud_dataset.csv": {
+    "text_hash": "bb5031adb842d3016fc7cc01addcd542",
+    "model_name": "all-MiniLM-L6-v2",
+    "computed_at": "2025-08-24T16:20:43.691357"
+  },
+  "k8s/base/ACCESS.md": {
+    "text_hash": "60c8aa8160f2aa1d3fcadeb64dcb8785",
+    "model_name": "all-MiniLM-L6-v2",
+    "computed_at": "2025-08-24T16:20:43.746610"
+  },
+  "k8s/base/namespace.yaml": {
+    "text_hash": "f2c308ac8ae85487e85e6eb207b5757a",
+    "model_name": "all-MiniLM-L6-v2",
+    "computed_at": "2025-08-24T16:20:43.776676"
+  },
+  "docs/Phase-06-Monitoring-Complete.md": {
+    "text_hash": "07b9e73ee420e20478b10fe63db775ac",
+    "model_name": "all-MiniLM-L6-v2",
+    "computed_at": "2025-08-24T16:20:43.809822"
+  },
+  "k8s/base/event-source.yaml": {
+    "text_hash": "5f7ac29fab398b096aaa4b1597d3e71d",
+    "model_name": "all-MiniLM-L6-v2",
+    "computed_at": "2025-08-24T16:20:43.828511"
+  },
+  "docs/Phase-03-Candidate.md": {
+    "text_hash": "4bc3c1e6238fde5b422dd85d51c9f694",
+    "model_name": "all-MiniLM-L6-v2",
+    "computed_at": "2025-08-24T16:20:43.874624"
+  },
+  "k8s/base/fraud-detection-ingress.yaml": {
+    "text_hash": "ba3091666223f7d9701f65b9f55989b4",
+    "model_name": "all-MiniLM-L6-v2",
+    "computed_at": "2025-08-24T16:20:43.905326"
+  },
+  "k8s/base/kustomization.yaml": {
+    "text_hash": "d6d822dd81e82da4cc7819500887a487",
+    "model_name": "all-MiniLM-L6-v2",
+    "computed_at": "2025-08-24T16:20:43.936235"
+  },
+  "scripts/push-fraud-metrics.py": {
+    "text_hash": "b24cc431254963d310c1329e8fc6326a",
+    "model_name": "all-MiniLM-L6-v2",
+    "computed_at": "2025-08-24T16:20:43.968982"
+  },
+  "k8s/base/runtime-pattern3.yaml": {
+    "text_hash": "bbec3a4ee438a156c5c349b50c922d05",
+    "model_name": "all-MiniLM-L6-v2",
+    "computed_at": "2025-08-24T16:20:43.999140"
+  },
+  "k8s/base/server-config-centralized.yaml": {
+    "text_hash": "9544a15eb988ce858d4badcacb3d6453",
+    "model_name": "all-MiniLM-L6-v2",
+    "computed_at": "2025-08-24T16:20:44.031917"
+  },
+  "monitoring/fraud_detection_alerts.yml": {
+    "text_hash": "cc7921053efca03de7373b33dc74bdd4",
+    "model_name": "all-MiniLM-L6-v2",
+    "computed_at": "2025-08-24T16:20:44.061970"
+  },
+  "argo-workflows/ml-training-pipeline.yaml": {
+    "text_hash": "b883a2691405d6dfc544ff0bf6621a6d",
+    "model_name": "all-MiniLM-L6-v2",
+    "computed_at": "2025-08-24T16:20:44.095304"
+  },
+  "docs/images/Tensorflow_logo.png": {
+    "text_hash": "85cc5746fed60c8a52a0e7e6a0a55ee7",
+    "model_name": "all-MiniLM-L6-v2",
+    "computed_at": "2025-08-24T16:20:44.130494"
+  },
+  "docs/Phase-08-Full-Lifecycle-Automation.md": {
+    "text_hash": "a84bd88e43907018c40a80549af45951",
+    "model_name": "all-MiniLM-L6-v2",
+    "computed_at": "2025-08-24T16:20:44.163917"
+  },
+  "k8s/base/nginx-ingress.yaml": {
+    "text_hash": "a7d6937dd6be7f8f7a8cf6fe50e10c83",
+    "model_name": "all-MiniLM-L6-v2",
+    "computed_at": "2025-08-24T16:20:44.194825"
+  },
+  "docs/images/precision_recall_curve_v2.png": {
+    "text_hash": "5cf594ae07cb7b0333cdc4ccc0c98ea3",
+    "model_name": "all-MiniLM-L6-v2",
+    "computed_at": "2025-08-24T16:20:44.233935"
+  },
+  "config/extended-ab-test-config.json": {
+    "text_hash": "77c260bca0ecc9d4f4ea0950aafbf4d8",
+    "model_name": "all-MiniLM-L6-v2",
+    "computed_at": "2025-08-24T16:20:44.263788"
+  },
+  "src/online-validation.py": {
+    "text_hash": "755a1118d59240a7bd333f57852cb20e",
+    "model_name": "all-MiniLM-L6-v2",
+    "computed_at": "2025-08-24T16:20:44.297560"
+  },
+  "fraud_ab_testing_demo/data/creditcard.csv": {
+    "text_hash": "e90efcb83d69faf99fcab8b0255024de",
+    "model_name": "all-MiniLM-L6-v2",
+    "computed_at": "2025-08-24T16:20:46.530140"
+  },
+  "scripts/validate-production-pipeline.py": {
+    "text_hash": "8f8453fe85159bf13c3ee95639e421bb",
+    "model_name": "all-MiniLM-L6-v2",
+    "computed_at": "2025-08-24T16:20:46.563242"
+  },
+  "docs/Phase-05-Deployment-Success.md": {
+    "text_hash": "83d7f33dbe1efb7f3aeea09c57d15321",
+    "model_name": "all-MiniLM-L6-v2",
+    "computed_at": "2025-08-24T16:20:46.634132"
+  },
+  "docs/Phase-05-Seldon-AB-Test.md": {
+    "text_hash": "b775e9cec901f7821c0dc84c5b6d23e2",
+    "model_name": "all-MiniLM-L6-v2",
+    "computed_at": "2025-08-24T16:20:46.667555"
+  },
+  "scripts/deploy-extended-ab-test.py": {
+    "text_hash": "83ea62654834c2072b7579aad1ad32c6",
+    "model_name": "all-MiniLM-L6-v2",
+    "computed_at": "2025-08-24T16:20:46.701046"
+  },
+  "k8s/base/sensor.yaml": {
+    "text_hash": "10ede3a8a45bbcd0874ccc46a7aa900d",
+    "model_name": "all-MiniLM-L6-v2",
+    "computed_at": "2025-08-24T16:20:46.732366"
+  },
+  "docs/Phase-07-Promotion-Decision.md": {
+    "text_hash": "2375f716c988a151f39d14b75f4df6e0",
+    "model_name": "all-MiniLM-L6-v2",
+    "computed_at": "2025-08-24T16:20:46.765426"
+  },
+  "docs/Phase-09-CICD-Automation.md": {
+    "text_hash": "30c9177405a3d4f80342c1511169517a",
+    "model_name": "all-MiniLM-L6-v2",
+    "computed_at": "2025-08-24T16:20:46.797086"
+  },
+  "requirements.txt": {
+    "text_hash": "5fab04e77d994aafda7cbd2fe82b0598",
+    "model_name": "all-MiniLM-L6-v2",
+    "computed_at": "2025-08-24T16:20:46.822140"
+  },
+  "docs/Phase-07-Extended-AB-Testing.md": {
+    "text_hash": "70c520137990b91eb77075f6a0e8b569",
+    "model_name": "all-MiniLM-L6-v2",
+    "computed_at": "2025-08-24T16:20:46.855160"
+  },
+  "pyproject.toml": {
+    "text_hash": "85831720ea0da2777a92e939c751abda",
+    "model_name": "all-MiniLM-L6-v2",
+    "computed_at": "2025-08-24T16:20:46.869454"
+  },
+  "k8s/base/training-pipeline.yaml": {
+    "text_hash": "d6a9b44ce2dae5d83b6001593d40a40b",
+    "model_name": "all-MiniLM-L6-v2",
+    "computed_at": "2025-08-24T16:20:46.900821"
+  },
+  "scripts/upload-existing-models.py": {
+    "text_hash": "ed84c174d94378f47ec05f969d8d31e4",
+    "model_name": "all-MiniLM-L6-v2",
+    "computed_at": "2025-08-24T16:20:46.933537"
+  },
+  "k8s/base/seldon-controller-rbac.yaml": {
+    "text_hash": "16f3a5eed8e9938f692a9246e7f9b397",
+    "model_name": "all-MiniLM-L6-v2",
+    "computed_at": "2025-08-24T16:20:46.964345"
+  },
+  "src/download.py": {
+    "text_hash": "26aea390ea6ecbe7a529be3a3790fa2c",
+    "model_name": "all-MiniLM-L6-v2",
+    "computed_at": "2025-08-24T16:20:46.974850"
+  },
+  "data/creditcard.csv": {
+    "text_hash": "e90efcb83d69faf99fcab8b0255024de",
+    "model_name": "all-MiniLM-L6-v2",
+    "computed_at": "2025-08-24T16:38:01.753500"
+  },
+  "scripts/run-tests.sh": {
+    "text_hash": "cf65dc2a87f711477410dc062a9e1c64",
+    "model_name": "all-MiniLM-L6-v2",
+    "computed_at": "2025-08-24T16:38:01.805267"
+  },
+  "data/splits/train_v1.csv": {
+    "text_hash": "49d12a8f2ca210eb55d56e0e3e94bd93",
+    "model_name": "all-MiniLM-L6-v2",
+    "computed_at": "2025-08-24T16:38:08.372776"
+  },
+  "data/enriched/fraud_dataset.csv": {
+    "text_hash": "bb5031adb842d3016fc7cc01addcd542",
+    "model_name": "all-MiniLM-L6-v2",
+    "computed_at": "2025-08-24T16:38:17.010612"
+  },
+  "docs/black-formatting.md": {
+    "text_hash": "090127a565ce761e9404917caef48d8a",
+    "model_name": "all-MiniLM-L6-v2",
+    "computed_at": "2025-08-24T16:38:17.068098"
+  },
+  "data/splits/train_v2.csv": {
+    "text_hash": "bb5031adb842d3016fc7cc01addcd542",
+    "model_name": "all-MiniLM-L6-v2",
+    "computed_at": "2025-08-24T16:38:25.665371"
+  },
+  "docs/testing-process.md": {
+    "text_hash": "a856af66334900e594f05b25421ab830",
+    "model_name": "all-MiniLM-L6-v2",
+    "computed_at": "2025-08-24T16:38:25.722298"
+  }
+}

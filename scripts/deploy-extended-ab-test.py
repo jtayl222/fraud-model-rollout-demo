@@ -13,123 +13,135 @@ import requests
 import json
 from datetime import datetime, timedelta
 
+
 def check_kubernetes_cluster():
     """Verify Kubernetes cluster is accessible and ready"""
     print("🔍 Checking Kubernetes Cluster Status")
     print("=" * 45)
-    
+
     try:
         # Check cluster nodes
-        result = subprocess.run(['kubectl', 'get', 'nodes'], 
-                              capture_output=True, text=True, timeout=30)
+        result = subprocess.run(
+            ["kubectl", "get", "nodes"], capture_output=True, text=True, timeout=30
+        )
         if result.returncode == 0:
             print("✅ Kubernetes cluster accessible")
             print(f"   Nodes: {len(result.stdout.strip().split('\n')) - 1}")
         else:
             print(f"❌ Cannot access Kubernetes cluster: {result.stderr}")
             return False
-            
+
         # Check Seldon operator
-        result = subprocess.run(['kubectl', 'get', 'pods', '-n', 'seldon-system'], 
-                              capture_output=True, text=True, timeout=30)
+        result = subprocess.run(
+            ["kubectl", "get", "pods", "-n", "seldon-system"],
+            capture_output=True,
+            text=True,
+            timeout=30,
+        )
         if result.returncode == 0:
             print("✅ Seldon Core operator running")
         else:
             print("❌ Seldon Core not found - please install first")
             return False
-            
+
         return True
-        
+
     except Exception as e:
         print(f"❌ Kubernetes check failed: {str(e)}")
         return False
+
 
 def verify_models_deployed():
     """Verify both fraud models are properly deployed"""
     print("\n🔍 Verifying Model Deployments")
     print("=" * 35)
-    
-    models = ['fraud-v1-baseline', 'fraud-v2-candidate']
+
+    models = ["fraud-v1-baseline", "fraud-v2-candidate"]
     endpoint = "http://192.168.1.202"
     host_header = "fraud-detection.local"
-    
+
     # Sample transaction for testing
     test_transaction = {
         "parameters": {"content_type": "np"},
-        "inputs": [{
-            "name": "fraud_features", 
-            "shape": [1, 30],
-            "datatype": "FP32",
-            "data": [0.1] * 30  # Simple test data
-        }]
+        "inputs": [
+            {
+                "name": "fraud_features",
+                "shape": [1, 30],
+                "datatype": "FP32",
+                "data": [0.1] * 30,  # Simple test data
+            }
+        ],
     }
-    
+
     for model in models:
         try:
             url = f"{endpoint}/v2/models/{model}/infer"
-            headers = {
-                "Content-Type": "application/json",
-                "Host": host_header
-            }
-            
-            response = requests.post(url, json=test_transaction, 
-                                   headers=headers, timeout=10)
-            
+            headers = {"Content-Type": "application/json", "Host": host_header}
+
+            response = requests.post(
+                url, json=test_transaction, headers=headers, timeout=10
+            )
+
             if response.status_code == 200:
                 result = response.json()
                 prediction = result["outputs"][0]["data"][0]
-                print(f"✅ {model}: {prediction:.6f} (latency: {response.elapsed.total_seconds()*1000:.1f}ms)")
+                print(
+                    f"✅ {model}: {prediction:.6f} (latency: {response.elapsed.total_seconds()*1000:.1f}ms)"
+                )
             else:
                 print(f"❌ {model}: HTTP {response.status_code}")
                 return False
-                
+
         except Exception as e:
             print(f"❌ {model}: {str(e)}")
             return False
-    
+
     return True
+
 
 def setup_production_monitoring():
     """Configure monitoring for extended A/B testing"""
     print("\n🔧 Setting Up Production Monitoring")
     print("=" * 40)
-    
+
     try:
         # Run the monitoring setup script
-        result = subprocess.run(['python', 'scripts/setup-monitoring.py'], 
-                              capture_output=True, text=True, timeout=60)
-        
+        result = subprocess.run(
+            ["python", "scripts/setup-monitoring.py"],
+            capture_output=True,
+            text=True,
+            timeout=60,
+        )
+
         if result.returncode == 0:
             print("✅ Monitoring infrastructure configured")
             print("✅ Prometheus metrics collection active")
             print("✅ Grafana dashboards ready")
         else:
             print(f"⚠️  Monitoring setup warnings: {result.stderr}")
-            
+
         return True
-        
+
     except Exception as e:
         print(f"❌ Monitoring setup failed: {str(e)}")
         return False
+
 
 def create_extended_test_config():
     """Create configuration for extended A/B testing"""
     print("\n📝 Creating Extended Test Configuration")
     print("=" * 45)
-    
+
     config = {
         "experiment_name": "fraud-detection-extended-ab-test",
         "start_date": datetime.now().isoformat(),
         "planned_duration_days": 28,
-        "traffic_split": {
-            "baseline_v1": 80,
-            "candidate_v2": 20
-        },
+        "traffic_split": {"baseline_v1": 80, "candidate_v2": 20},
         "success_criteria": {
             "minimum_transactions_per_model": 10000,
             "required_recall_improvement": 0.05,  # 5%
             "maximum_precision_degradation": 0.10,  # 10%
-            "minimum_statistical_significance": 0.95
+            "minimum_statistical_significance": 0.95,
         },
         "model_configurations": {
             "fraud-v1-baseline": {
@@ -137,51 +149,56 @@ def create_extended_test_config():
                 "expected_performance": {
                     "precision": 0.9795,
                     "recall": 0.7351,
-                    "f1_score": 0.8399
-                }
+                    "f1_score": 0.8399,
+                },
             },
             "fraud-v2-candidate": {
                 "threshold": 0.9,  # Optimal threshold from tuning
                 "expected_performance": {
                     "precision": 0.9595,  # At threshold 0.9
                     "recall": 1.0000,
-                    "f1_score": 0.9793
-                }
-            }
+                    "f1_score": 0.9793,
+                },
+            },
         },
         "monitoring": {
             "metrics_collection_interval_seconds": 60,
             "alert_thresholds": {
                 "max_response_time_ms": 2000,
                 "min_success_rate": 0.99,
-                "max_error_rate": 0.01
-            }
-        }
+                "max_error_rate": 0.01,
+            },
+        },
     }
-    
+
     # Save configuration
     config_path = "config/extended-ab-test-config.json"
     os.makedirs("config", exist_ok=True)
-    
-    with open(config_path, 'w') as f:
+
+    with open(config_path, "w") as f:
         json.dump(config, f, indent=2)
-    
+
     print(f"✅ Configuration saved: {config_path}")
     print(f"   Duration: {config['planned_duration_days']} days")
-    print(f"   Traffic Split: {config['traffic_split']['baseline_v1']}/{config['traffic_split']['candidate_v2']}")
-    print(f"   Target: {config['success_criteria']['minimum_transactions_per_model']} transactions/model")
-    
+    print(
+        f"   Traffic Split: {config['traffic_split']['baseline_v1']}/{config['traffic_split']['candidate_v2']}"
+    )
+    print(
+        f"   Target: {config['success_criteria']['minimum_transactions_per_model']} transactions/model"
+    )
+
     return config_path
+
 
 def simulate_production_traffic():
     """Start production traffic simulation for A/B testing"""
     print("\n🚀 Starting Production Traffic Simulation")
     print("=" * 45)
-    
+
     try:
         # Start background traffic simulation
         print("Starting fraud traffic simulation...")
-        
+
         # Use the production fraud inference service
         simulation_script = """
 import time
@@ -216,28 +233,29 @@ print("   Collecting metrics every transaction")
 print("   Pushing to Prometheus/Grafana")
 print("   Building statistical significance")
 """
-        
+
         # Write and execute simulation
         with open("/tmp/ab_test_simulation.py", "w") as f:
             f.write(simulation_script)
-        
-        subprocess.run(['python', '/tmp/ab_test_simulation.py'])
-        
+
+        subprocess.run(["python", "/tmp/ab_test_simulation.py"])
+
         print("\n✅ Traffic simulation initialized")
         print("📊 Metrics collection active")
         print("🔄 A/B test running in background")
-        
+
         return True
-        
+
     except Exception as e:
         print(f"❌ Traffic simulation failed: {str(e)}")
         return False
+
 
 def create_phase_documentation():
     """Create documentation for the extended A/B testing phase"""
     print("\n📚 Creating Phase Documentation")
     print("=" * 35)
-    
+
     content = f"""# Phase 7: Extended A/B Testing in Production
 
 **Status**: ACTIVE - Extended A/B Testing Phase  
@@ -368,11 +386,12 @@ Based on offline validation and threshold optimization:
 
     # Save documentation
     doc_path = "docs/Phase-07-Extended-AB-Testing.md"
-    with open(doc_path, 'w') as f:
+    with open(doc_path, "w") as f:
         f.write(content)
-    
+
     print(f"✅ Phase 7 documentation created: {doc_path}")
     return doc_path
+
 
 def main():
     """Main deployment function for extended A/B testing"""
@@ -382,33 +401,33 @@ def main():
     print("=" * 60)
     print(f"Started: {datetime.now().strftime('%B %d, %Y at %H:%M:%S UTC')}")
     print()
-    
+
     # Phase 1: Infrastructure Validation
     if not check_kubernetes_cluster():
         print("\n❌ Deployment failed: Kubernetes cluster issues")
         return 1
-    
-    # Phase 2: Model Validation  
+
+    # Phase 2: Model Validation
     if not verify_models_deployed():
         print("\n❌ Deployment failed: Model deployment issues")
         return 1
-    
+
     # Phase 3: Monitoring Setup
     if not setup_production_monitoring():
         print("\n❌ Deployment failed: Monitoring setup issues")
         return 1
-    
+
     # Phase 4: Configuration
     config_path = create_extended_test_config()
-    
+
     # Phase 5: Traffic Simulation
     if not simulate_production_traffic():
         print("\n❌ Deployment failed: Traffic simulation issues")
         return 1
-        
+
     # Phase 6: Documentation
     doc_path = create_phase_documentation()
-    
+
     # Success Summary
     print(f"\n🎉 EXTENDED A/B TEST DEPLOYMENT COMPLETE!")
     print("=" * 55)
@@ -421,14 +440,14 @@ def main():
     print(f"✅ Configuration: {config_path}")
     print(f"✅ Documentation: {doc_path}")
     print()
-    
+
     print("📊 EXPECTED PERFORMANCE IMPROVEMENT")
     print("=" * 40)
     print("Baseline (v1):  73.5% recall, 97.9% precision")
     print("Candidate (v2): 100.0% recall, 95.9% precision")
     print("Improvement:    +36.0% recall, -2.0% precision")
     print()
-    
+
     print("🎯 NEXT 4 WEEKS: EXTENDED A/B TESTING")
     print("=" * 45)
     print("• Target: 10,000+ transactions per model")
@@ -436,24 +455,25 @@ def main():
     print("• Weekly reviews: Tuesdays")
     print("• Final decision: August 19, 2025")
     print()
-    
+
     print("🔍 MONITORING DASHBOARDS")
     print("=" * 30)
     print("• Prometheus: http://prometheus.local")
-    print("• Grafana: http://grafana.local") 
+    print("• Grafana: http://grafana.local")
     print("• Metrics: Real-time fraud detection performance")
     print()
-    
+
     print("🚨 ROLLBACK PLAN")
     print("=" * 20)
     print("• If issues detected: Automatic routing to 100% v1")
     print("• Recovery time: <5 minutes")
     print("• Alert monitoring: 24/7 automated")
     print()
-    
+
     print("🎊 PRODUCTION FRAUD DETECTION A/B TEST IS LIVE!")
-    
+
     return 0
+
 
 if __name__ == "__main__":
     exit(main())
