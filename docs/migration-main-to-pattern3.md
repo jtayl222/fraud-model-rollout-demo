@@ -12,7 +12,7 @@ This guide documents every change necessary to upgrade from the main branch (mod
 
 ## Post-Migration State (Pattern 3)
 
-- ServerConfig centralized in `seldon-system` namespace  
+- ServerConfig centralized in `seldon-system` namespace
 - Application resources in dedicated `fraud-detection` namespace
 - Runtime components deployed via Helm to application namespace
 - Official Seldon Core v2 architecture (no custom patches)
@@ -61,7 +61,7 @@ helm upgrade seldon-core-v2-setup seldon-core-v2-setup \
 # OLD (main branch): ServerConfig in same namespace
 serverConfig: mlserver-config  # Looks in fraud-detection namespace
 
-# NEW (Pattern 3): References centralized ServerConfig  
+# NEW (Pattern 3): References centralized ServerConfig
 serverConfig: mlserver-config  # Pattern 3: References ServerConfig in seldon-system namespace
 ```
 
@@ -98,7 +98,7 @@ SELDON_ENDPOINT = "http://192.168.1.212"  # seldon-mesh LoadBalancer IP
 ```bash
 # Remove experimental/redundant files
 rm .claude/settings.local.json
-rm fraud-detection-ml-secrets-20250722.tar.gz  
+rm fraud-detection-ml-secrets-20250722.tar.gz
 rm seldon-system-ml-secrets-20250719.tar.gz
 rm scripts/seldon-architecture-diagram.py
 rm data.ipynb
@@ -140,7 +140,7 @@ kubectl apply -k k8s/base/
 # Check ServerConfig in seldon-system
 kubectl get serverconfig -n seldon-system
 
-# Check Server and Models in fraud-detection  
+# Check Server and Models in fraud-detection
 kubectl get servers,models -n fraud-detection
 
 # Test inference
@@ -155,7 +155,7 @@ curl -X POST http://localhost:9000/v2/models/fraud-v1-baseline/infer \
 | Component | Main Branch | Pattern 3 |
 |-----------|-------------|-----------|
 | **ServerConfig Location** | Same as models | seldon-system namespace |
-| **Runtime Deployment** | Kustomize/YAML | Helm chart |  
+| **Runtime Deployment** | Kustomize/YAML | Helm chart |
 | **Operator Configuration** | clusterwide=false | clusterwide=true |
 | **Namespace Strategy** | Single (seldon-system) | Multi (seldon-system + fraud-detection) |
 | **Scheduler** | Shared in seldon-system | Dedicated per namespace |
@@ -203,7 +203,7 @@ If migration fails:
 ## Files Changed Summary
 
 **New Files**: 6
-**Modified Files**: 4  
+**Modified Files**: 4
 **Removed Files**: 9
 **Conditional Files**: 11 (evaluate based on requirements)
 

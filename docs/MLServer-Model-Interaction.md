@@ -115,4 +115,3 @@ kubectl label namespace fraud-detection pod-security.kubernetes.io/enforce=basel
 kubectl label namespace fraud-detection pod-security.kubernetes.io/audit=baseline --overwrite
 kubectl label namespace fraud-detection pod-security.kubernetes.io/warn=baseline --overwrite
 ```
-

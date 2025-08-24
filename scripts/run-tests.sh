@@ -59,7 +59,7 @@ else
     if [ "$FORCE_RUN" = true ]; then
         echo "Force mode: Re-running data preparation..."
     fi
-    
+
     # Check if creditcard.csv exists in cache
     if [ "$FORCE_RUN" = false ] && [ -f "$HOME/.cache/kagglehub/datasets/mlg-ulb/creditcardfraud/versions/3/creditcard.csv" ]; then
         echo -e "${GREEN}✓ Dataset already downloaded, skipping download${NC}"
@@ -68,7 +68,7 @@ else
         python src/download.py
         print_status $? "Dataset download"
     fi
-    
+
     echo ""
     echo "Preparing and enriching data (this may take 2-3 minutes)..."
     python src/data.py

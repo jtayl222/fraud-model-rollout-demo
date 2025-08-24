@@ -76,7 +76,7 @@ spec:
       value: "https://github.com/yourusername/fraud-model-rollout-demo"
     - name: git-branch
       value: "main"
-  
+
   templates:
   - name: ml-pipeline
     dag:
@@ -89,11 +89,11 @@ spec:
             value: "{{workflow.parameters.git-repo}}"
           - name: branch
             value: "{{workflow.parameters.git-branch}}"
-      
+
       - name: validate-data
         dependencies: [clone-repo]
         template: data-validation
-      
+
       - name: train-baseline
         dependencies: [validate-data]
         template: train-model
@@ -101,7 +101,7 @@ spec:
           parameters:
           - name: model-type
             value: "baseline"
-      
+
       - name: train-candidate
         dependencies: [validate-data]
         template: train-model
@@ -109,15 +109,15 @@ spec:
           parameters:
           - name: model-type
             value: "candidate"
-      
+
       - name: evaluate-models
         dependencies: [train-baseline, train-candidate]
         template: model-evaluation
-      
+
       - name: update-manifest
         dependencies: [evaluate-models]
         template: update-k8s-manifest
-      
+
       - name: trigger-deployment
         dependencies: [update-manifest]
         template: argocd-sync
@@ -129,7 +129,7 @@ spec:
     container:
       image: harbor.test/mlops/ml-trainer:latest
       command: [python]
-      args: 
+      args:
       - src/train_model.py
       - --model-type
       - "{{inputs.parameters.model-type}}"
@@ -253,7 +253,7 @@ data:
     rules:
     - name: model-performance-degradation
       condition: |
-        app.status.health.status == "Degraded" && 
+        app.status.health.status == "Degraded" &&
         app.status.operationState.finishedAt > "10m"
       action: |
         argocd app rollback fraud-detection-models --revision HEAD~1

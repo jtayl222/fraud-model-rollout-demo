@@ -18,7 +18,7 @@ spec:
       value: "http://mlflow.test:5000"
     - name: harbor-registry
       value: "harbor.test/mlops"
-  
+
   volumeClaimTemplates:
   - metadata:
       name: work
@@ -40,15 +40,15 @@ spec:
             value: "{{workflow.parameters.git-repo}}"
           - name: branch
             value: "{{workflow.parameters.git-branch}}"
-      
+
       - name: prepare-data
         dependencies: [clone-repo]
         template: data-preparation
-      
+
       - name: validate-data
         dependencies: [prepare-data]
         template: data-validation
-      
+
       - name: train-baseline
         dependencies: [validate-data]
         template: train-model
@@ -58,7 +58,7 @@ spec:
             value: "baseline"
           - name: model-version
             value: "v1"
-      
+
       - name: train-candidate
         dependencies: [validate-data]
         template: train-model
@@ -68,24 +68,24 @@ spec:
             value: "candidate"
           - name: model-version
             value: "{{workflow.parameters.model-version}}"
-      
+
       - name: evaluate-models
         dependencies: [train-baseline, train-candidate]
         template: model-evaluation
-      
+
       - name: build-containers
         dependencies: [evaluate-models]
         template: container-build
         when: "{{tasks.evaluate-models.outputs.result}} == 'passed'"
-      
+
       - name: update-manifest
         dependencies: [build-containers]
         template: update-k8s-manifest
-      
+
       - name: trigger-deployment
         dependencies: [update-manifest]
         template: argocd-sync
-      
+
       - name: notify-completion
         dependencies: [trigger-deployment]
         template: send-notification
@@ -132,10 +132,10 @@ spec:
       - |
         import pandas as pd
         import json
-        
+
         # Load and validate data
         df = pd.read_csv('/work/data/enriched/fraud_dataset.csv')
-        
+
         validation_results = {
             'total_rows': len(df),
             'fraud_rate': float(df['Class'].mean()),
@@ -143,9 +143,9 @@ spec:
             'missing_values': int(df.isnull().sum().sum()),
             'status': 'passed' if len(df) > 900000 else 'failed'
         }
-        
+
         print(json.dumps(validation_results, indent=2))
-        
+
         if validation_results['status'] == 'failed':
             raise ValueError("Data validation failed")
       volumeMounts:
@@ -175,9 +175,9 @@ spec:
         export MODEL_TYPE={{inputs.parameters.model-type}}
         export MODEL_VERSION={{inputs.parameters.model-version}}
         export MLFLOW_TRACKING_URI={{workflow.parameters.mlflow-tracking-uri}}
-        
+
         python src/train_model.py
-        
+
         # Copy outputs for workflow
         cp models/{{inputs.parameters.model-version}}_model_uri.txt /tmp/model_uri.txt
         cp models/{{inputs.parameters.model-version}}_metrics.json /tmp/metrics.json
@@ -211,18 +211,18 @@ spec:
       args:
       - |
         import json
-        
+
         # Read metrics from both models
         with open('/work/models/v1_metrics.json', 'r') as f:
             v1_metrics = json.load(f)
-        
+
         with open('/work/models/v2_metrics.json', 'r') as f:
             v2_metrics = json.load(f)
-        
+
         # Evaluation logic
         recall_improvement = (v2_metrics['recall'] - v1_metrics['recall']) / v1_metrics['recall']
         precision_maintained = v2_metrics['precision'] >= (v1_metrics['precision'] * 0.95)
-        
+
         if recall_improvement >= 0.05 and precision_maintained:
             result = "passed"
             print(f"✅ Model evaluation passed!")
@@ -233,7 +233,7 @@ spec:
             print(f"❌ Model evaluation failed")
             print(f"Recall improvement: {recall_improvement:.1%} (required: ≥5%)")
             print(f"Precision maintained: {precision_maintained}")
-        
+
         with open('/tmp/evaluation_result.txt', 'w') as f:
             f.write(result)
       volumeMounts:
@@ -265,18 +265,18 @@ spec:
       args:
       - |
         cd /work
-        
+
         # Read model URIs
         V1_URI=$(cat models/v1_model_uri.txt)
         V2_URI=$(cat models/v2_model_uri.txt)
-        
+
         # Update configuration
         python scripts/update-model-config.py \
           --v1-uri "$V1_URI" \
           --v2-uri "$V2_URI" \
           --baseline-weight 80 \
           --candidate-weight 20
-        
+
         # Commit and push changes
         git config user.name "Argo Workflows"
         git config user.email "argo@mlops.local"
@@ -322,7 +322,7 @@ spec:
         echo "🚀 ML Pipeline completed successfully!"
         echo "Workflow: {{workflow.name}}"
         echo "Models deployed to production"
-        
+
         # Send Slack notification (if configured)
         if [ -n "$SLACK_WEBHOOK" ]; then
           curl -X POST $SLACK_WEBHOOK \

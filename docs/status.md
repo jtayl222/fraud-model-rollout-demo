@@ -13,7 +13,7 @@ This project demonstrates a complete MLOps pipeline for safely rolling out a new
    - Enriched data with temporal drift simulation (~1M transactions)
    - Created train/test splits for v1 and v2 models
 
-2. **Phase 2: Model Training** ✅  
+2. **Phase 2: Model Training** ✅
    - Baseline Model (v1): 73.5% recall, 97.9% precision
    - Candidate Model (v2): 100% recall, 90.9% precision
    - Both models saved as TensorFlow/Keras artifacts
@@ -157,8 +157,8 @@ curl -X POST http://192.168.1.212/v2/models/fraud-v1-baseline/infer \
   -d '{
     "parameters": {"content_type": "np"},
     "inputs": [{
-      "name": "fraud_features", 
-      "shape": [1, 30], 
+      "name": "fraud_features",
+      "shape": [1, 30],
       "datatype": "FP32",
       "data": [/* 30 preprocessed float values */]
     }]
@@ -166,7 +166,7 @@ curl -X POST http://192.168.1.212/v2/models/fraud-v1-baseline/infer \
 ```
 
 ### Key Naming Convention:
-- **External API**: Use `fraud-v1-baseline`, `fraud-v2-candidate` (Seldon resource names)  
+- **External API**: Use `fraud-v1-baseline`, `fraud-v2-candidate` (Seldon resource names)
 - **Internal MLServer**: Models load as `fraud-v1-baseline_1`, `fraud-v2-candidate_1` (with version suffix)
 - **A/B Testing**: Experiment routes using Seldon resource names
 
@@ -174,7 +174,7 @@ curl -X POST http://192.168.1.212/v2/models/fraud-v1-baseline/infer \
 
 ✅ **All objectives achieved**: The fraud detection A/B testing pipeline is fully operational with validated performance improvements.
 
-✅ **Architecture**: Deployed using official Seldon Core v2 Pattern 3 (lc525 recommended) 
+✅ **Architecture**: Deployed using official Seldon Core v2 Pattern 3 (lc525 recommended)
 
 ✅ **Performance**: Online validation confirms +36.4% recall improvement matches offline analysis
 
@@ -187,7 +187,7 @@ curl -X POST http://192.168.1.212/v2/models/fraud-v1-baseline/infer \
 *Last Updated: July 24, 2025 - PROJECT COMPLETE*
 
 Evaluating Baseline Model (v1) on HOLD OUT TEST SET (Feb–Mar 2024 - with drift):
-4529/4529 ━━━━━━━━━━━━━━━━━━━━ 1s 236us/step 
+4529/4529 ━━━━━━━━━━━━━━━━━━━━ 1s 236us/step
   Holdout Precision (v1): 0.9845
   Holdout Recall (v1):    0.7313
   Holdout F1-Score (v1):  0.8392
@@ -217,7 +217,7 @@ Candidate Model (v2) Training Complete.
 Step 5: Performing Offline Evaluation for Candidate Model (v2)...
 
 Evaluating Candidate Model (v2) on HOLD OUT TEST SET (Feb–Mar 2024):
-4529/4529 ━━━━━━━━━━━━━━━━━━━━ 1s 218us/step 
+4529/4529 ━━━━━━━━━━━━━━━━━━━━ 1s 218us/step
   Holdout Precision (v2): 0.9729
   Holdout Recall (v2):    1.0000
   Holdout F1-Score (v2):  0.9863
@@ -252,14 +252,14 @@ Holdout data scaled for evaluation.
 Step 3: Evaluate Both Models on the Holdout Set...
 
 --- Evaluating Baseline Model (v1) ---
-4529/4529 ━━━━━━━━━━━━━━━━━━━━ 1s 242us/step 
+4529/4529 ━━━━━━━━━━━━━━━━━━━━ 1s 242us/step
   Precision (v1): 0.9795
   Recall (v1):    0.7351
   F1-Score (v1):  0.8399
   AUC-ROC (v1):   0.9556
 
 --- Evaluating Candidate Model (v2) ---
-4529/4529 ━━━━━━━━━━━━━━━━━━━━ 1s 238us/step 
+4529/4529 ━━━━━━━━━━━━━━━━━━━━ 1s 238us/step
   Precision (v2): 0.9092
   Recall (v2):    1.0000
   F1-Score (v2):  0.9525

@@ -48,7 +48,7 @@ A fraud detection model that performs better in offline evaluation might not del
 ```python
 # Offline evaluation results
 baseline_recall = 0.735     # 73.5% recall
-candidate_recall = 1.000    # 100% recall  
+candidate_recall = 1.000    # 100% recall
 improvement = 0.265         # +26.5 percentage points
 
 # But what happens in production?
@@ -156,7 +156,7 @@ def make_deployment_decision(metrics):
     """Automated decision making based on comprehensive metrics"""
     recall_improvement = metrics['candidate_recall'] - metrics['baseline_recall']
     precision_drop = metrics['baseline_precision'] - metrics['candidate_precision']
-    
+
     # Production validation decision criteria
     if recall_improvement < 0.05:  # Less than 5% improvement
         return "REJECT - Insufficient recall improvement"
@@ -177,7 +177,7 @@ Traditional A/B testing focuses on a single metric (conversion rate). Fraud dete
 ```python
 success_criteria = {
     "primary": "recall_improvement >= 5%",
-    "secondary": "response_time < 200ms", 
+    "secondary": "response_time < 200ms",
     "guardrail": "precision_drop <= 10%",
     "architecture": "seldon_pattern_3_compliance"
 }
@@ -256,7 +256,7 @@ Models can fail due to:
 Fraud detection A/B testing requires **comprehensive monitoring**:
 
 1. **Model Performance**: Precision, recall, F1-score
-2. **System Performance**: Response time, error rates, throughput  
+2. **System Performance**: Response time, error rates, throughput
 3. **Business Impact**: False positive costs, fraud catch rates
 4. **Infrastructure Health**: seldon-mesh LoadBalancer accessibility
 

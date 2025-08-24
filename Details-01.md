@@ -59,22 +59,22 @@ Here are more detailed steps for **Phase 1: Dataset Strategy** that you could ha
 
 ```bash
 Output:
-                Class  
-    count  284807.000000  
-    mean        0.001727  
-    std         0.041527  
-    min         0.000000  
-    25%         0.000000  
-    50%         0.000000  
-    75%         0.000000  
-    max         1.000000  
+                Class
+    count  284807.000000
+    mean        0.001727
+    std         0.041527
+    min         0.000000
+    25%         0.000000
+    50%         0.000000
+    75%         0.000000
+    max         1.000000
 
     [8 rows x 31 columns]
     Class
     0    0.998273
     1    0.001727
     Name: proportion, dtype: float64
-```      
+```
 
 -----
 

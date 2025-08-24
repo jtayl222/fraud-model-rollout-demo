@@ -49,7 +49,7 @@ python scripts/send_feedback.py
 ### Data Flow
 1. **Original Data**: `data/creditcard.csv` - Kaggle credit card fraud dataset
 2. **Enriched Data**: `data/enriched/fraud_dataset.csv` - ~1M transactions with temporal drift
-3. **Training Splits**: 
+3. **Training Splits**:
    - `data/splits/train_v1.csv` - Baseline training (Jan-Dec 2023)
    - `data/splits/train_v2.csv` - Candidate training (Jan 2023-Mar 2024)
    - `data/splits/holdout_test.csv` - Test set (Feb-Mar 2024)
@@ -80,7 +80,7 @@ Both models use identical TensorFlow MLP architecture:
 ### Platform Information
 - **Development Machine**: MacBook (macOS)
 - **Target Deployment**: Ubuntu machine with Harbor container registry
-- **MLflow Setup**: 
+- **MLflow Setup**:
   - Virtual environment at `.venv/bin/mlflow`
   - MLflow installed and configured with environment variables:
     ```bash
@@ -103,10 +103,10 @@ Both models use identical TensorFlow MLP architecture:
    ```bash
    # Train baseline model (v1)
    python src/train_model.py --model-type baseline --model-version v1
-   
-   # Train candidate model (v2) 
+
+   # Train candidate model (v2)
    python src/train_model.py --model-type candidate --model-version v2
-   
+
    # Or use environment variables
    MODEL_TYPE=retrain MODEL_VERSION=v3 python src/train_model.py
    ```
@@ -114,7 +114,7 @@ Both models use identical TensorFlow MLP architecture:
    ```bash
    # Automatically reads URIs from training output files
    python scripts/update-model-config.py
-   
+
    # Or specify URIs and traffic split manually
    python scripts/update-model-config.py \
      --v1-uri "s3://mlflow-artifacts/40/abc123/artifacts/fraud-v1-baseline" \
@@ -122,7 +122,7 @@ Both models use identical TensorFlow MLP architecture:
      --baseline-weight 70 --candidate-weight 30
    ```
 5. **Commit & Push**: All changes must be committed and pushed to Git repository
-6. **Remote Build**: User pulls changes on Ubuntu machine, builds container images, and pushes to Harbor registry  
+6. **Remote Build**: User pulls changes on Ubuntu machine, builds container images, and pushes to Harbor registry
 7. **Kubernetes Deployment**: Deploy A/B test with real S3 URIs
    ```bash
    kubectl apply -k k8s/base/

@@ -24,7 +24,7 @@ With the A/B test infrastructure successfully deployed in Phase 5, Phase 6 focus
 # Scheduler metrics
 http://192.168.1.201:9006/metrics
 
-# Model-specific metrics  
+# Model-specific metrics
 http://192.168.1.202/v2/models/fraud-v1-baseline/metrics
 http://192.168.1.202/v2/models/fraud-v2-candidate/metrics
 
@@ -48,7 +48,7 @@ Use existing cluster monitoring if available:
 # Check for existing Prometheus
 kubectl get prometheus -A
 
-# Check for existing Grafana  
+# Check for existing Grafana
 kubectl get grafana -A
 
 # Check for ServiceMonitor CRDs
@@ -114,7 +114,7 @@ sum(rate(seldon_model_requests_total[5m])) by (model_name)
 histogram_quantile(0.95, seldon_model_request_duration_seconds_bucket)
 
 # Average response time per model
-rate(seldon_model_request_duration_seconds_sum[5m]) / 
+rate(seldon_model_request_duration_seconds_sum[5m]) /
 rate(seldon_model_request_duration_seconds_count[5m])
 ```
 
@@ -123,7 +123,7 @@ rate(seldon_model_request_duration_seconds_count[5m])
 # Fraud detection rate
 sum(rate(fraud_detected_total[5m])) / sum(rate(transactions_total[5m]))
 
-# False positive rate  
+# False positive rate
 sum(rate(false_positives_total[5m])) / sum(rate(legitimate_transactions_total[5m]))
 ```
 
@@ -254,12 +254,12 @@ kubectl logs -f -n seldon-system seldon-scheduler-0
 ## 📋 Success Criteria for Phase 6
 
 - ✅ **Metrics Collection**: All key metrics flowing to monitoring system
-- ✅ **Dashboard Creation**: Real-time visibility into A/B test performance  
+- ✅ **Dashboard Creation**: Real-time visibility into A/B test performance
 - ✅ **Alert Configuration**: Proactive notification of issues
 - ✅ **Data Analysis**: Statistical analysis of model performance
 - ✅ **Decision Framework**: Clear criteria for promotion/rollback
 
 ---
 
-*Previous: [Phase 5 - Deployment Success](Phase-05-Deployment-Success.md)*  
+*Previous: [Phase 5 - Deployment Success](Phase-05-Deployment-Success.md)*
 *Next: [Phase 7 - Model Promotion Decision](Phase-07-Promotion-Decision.md)*

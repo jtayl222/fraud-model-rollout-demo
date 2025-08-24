@@ -262,4 +262,3 @@ kubectl port-forward svc/grafana 3000:80 -n monitoring
 **Author:** *Jeff Taylor*
 📧 Contact: *[jtayl22@gmail.com](mailto:jtayl22@gmail.com)*
 ⭐ *If this helps, star the repo!*
-

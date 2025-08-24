@@ -212,7 +212,7 @@ We created a comprehensive validation tool that proves the entire production pip
 Production Pipeline Validation Tool for Fraud Detection.
 
 This script validates that the production fraud detection pipeline works correctly by:
-- Testing proper feature preprocessing (scaling, ordering) 
+- Testing proper feature preprocessing (scaling, ordering)
 - Validating both V1/V2 models respond accurately via seldon-mesh
 - Demonstrating A/B testing with optimal thresholds
 - Proving the pipeline is ready for extended production A/B testing
@@ -239,105 +239,105 @@ OPTIMAL_THRESHOLDS = {
 
 class FraudDetectionPipeline:
     """Production fraud detection pipeline with proper preprocessing"""
-    
+
     def __init__(self):
         self.scaler = None
         self.feature_columns = None
         self._initialize_preprocessing()
-    
+
     def _initialize_preprocessing(self):
         """Initialize the feature scaler using the EXACT same training data"""
         print("🔧 Initializing Production Preprocessing Pipeline")
         print("=" * 55)
-        
+
         # Load the same training data used to train the models
         train_v2_df = pd.read_csv("data/splits/train_v2.csv")
-        
+
         # Get feature columns in EXACT training order: V1-V28, Amount, Time
-        self.feature_columns = [col for col in train_v2_df.columns 
+        self.feature_columns = [col for col in train_v2_df.columns
                               if col.startswith('V') or col in ['Time', 'Amount']]
-        
+
         # Fit scaler on training data (same as used in model training)
         self.scaler = StandardScaler()
         self.scaler.fit(train_v2_df[self.feature_columns])
-        
+
         print(f"✅ Scaler fitted on {len(train_v2_df)} training samples")
         print(f"✅ Feature order: {len(self.feature_columns)} features")
         print(f"   Training order: {self.feature_columns[:5]}... {self.feature_columns[-2:]}")
-    
+
     def preprocess_transaction(self, transaction_data: Dict) -> np.ndarray:
         """
         Preprocess a transaction for model inference.
-        
+
         CRITICAL: This must match training preprocessing exactly:
         1. Same feature ordering as training
-        2. Same StandardScaler parameters as training  
+        2. Same StandardScaler parameters as training
         3. Same data types and shapes as training
         """
         if self.scaler is None:
             raise RuntimeError("Preprocessing not initialized")
-        
+
         # Create DataFrame with transaction data in TRAINING ORDER
         df_data = {}
         for feature in self.feature_columns:
             if feature not in transaction_data:
                 raise ValueError(f"Missing required feature: {feature}")
             df_data[feature] = [transaction_data[feature]]
-        
+
         df = pd.DataFrame(df_data)
-        
+
         # Scale features using the SAME scaler parameters from training
         scaled_features = self.scaler.transform(df[self.feature_columns])
         return scaled_features[0]  # Return single transaction
-    
+
     def predict_fraud(self, transaction_data: Dict, model_name: str) -> Dict:
         """Make fraud prediction using Pattern 3 architecture"""
         start_time = time.time()
-        
+
         try:
             # Preprocess transaction with proper scaling and ordering
             scaled_features = self.preprocess_transaction(transaction_data)
-            
+
             # Create V2 inference payload for Seldon Core v2
             payload = {
                 "parameters": {"content_type": "np"},
                 "inputs": [{
                     "name": "fraud_features",
                     "shape": [1, 30],
-                    "datatype": "FP32", 
+                    "datatype": "FP32",
                     "data": scaled_features.tolist()
                 }]
             }
-            
+
             # Send inference request to seldon-mesh LoadBalancer
             url = f"{SELDON_ENDPOINT}/v2/models/{model_name}/infer"
             headers = {
                 "Content-Type": "application/json",
                 "Host": HOST_HEADER  # Required for Pattern 3 Host-based routing
             }
-            
+
             print(f"   Debug: Sending request to {url}")
             print(f"   Debug: Using Seldon resource name: {model_name}")
             print(f"   Debug: Payload shape: {payload['inputs'][0]['shape']}")
-            
+
             response = requests.post(url, json=payload, headers=headers, timeout=10)
             inference_time = time.time() - start_time
-            
+
             print(f"   Debug: HTTP {response.status_code}")
-            
+
             if response.status_code == 200:
                 result = response.json()
-                
+
                 # Extract probability score from V2 response
                 fraud_probability = float(result["outputs"][0]["data"][0])
-                
+
                 # Apply optimal threshold (key to performance!)
                 threshold = OPTIMAL_THRESHOLDS.get(model_name, 0.5)
                 is_fraud = fraud_probability > threshold
-                
+
                 # Calculate confidence level for business interpretation
                 confidence = "HIGH" if fraud_probability > 0.9 else "MEDIUM" if fraud_probability > 0.5 else "LOW"
-                
+
                 return {
                     "status": "success",
                     "model_used": model_name,
@@ -355,42 +355,42 @@ class FraudDetectionPipeline:
                     "error": f"HTTP {response.status_code}: {response.text}",
                     "inference_time_ms": inference_time * 1000
                 }
-                
+
         except Exception as e:
             return {
-                "status": "error", 
+                "status": "error",
                 "error": str(e),
                 "inference_time_ms": (time.time() - start_time) * 1000
             }
-    
+
     def ab_test_prediction(self, transaction_data: Dict) -> Dict:
         """Perform A/B test prediction using both models (Pattern 3)"""
-        
+
         print(f"\n🧪 A/B Test Prediction (Pattern 3)")
         print(f"   Amount: ${transaction_data.get('Amount', 0):.2f}")
         print(f"   Time: {transaction_data.get('Time', 0)}")
-        
+
         # Test both models using Seldon resource names
         baseline_result = self.predict_fraud(transaction_data, "fraud-v1-baseline")
         candidate_result = self.predict_fraud(transaction_data, "fraud-v2-candidate")
-        
+
         print(f"\n   📊 Results:")
         print(f"   Baseline (v1): {baseline_result.get('fraud_probability', 0):.6f} "
               f"({baseline_result.get('risk_level', 'Unknown')})")
         print(f"   Candidate (v2): {candidate_result.get('fraud_probability', 0):.6f} "
               f"({candidate_result.get('risk_level', 'Unknown')})")
-        
+
         # Simulate 80/20 A/B split (as configured in Experiment)
         import random
         if random.random() < 0.8:
             production_model = "baseline"
             production_result = baseline_result
         else:
-            production_model = "candidate" 
+            production_model = "candidate"
             production_result = candidate_result
-            
+
         print(f"   🎯 A/B Selection: {production_model} model selected (80/20 split)")
-        
+
         return {
             "baseline_result": baseline_result,
             "candidate_result": candidate_result,
@@ -398,10 +398,10 @@ class FraudDetectionPipeline:
             "production_result": production_result,
             "comparison": {
                 "fraud_detection_difference": (
-                    candidate_result.get('fraud_probability', 0) - 
+                    candidate_result.get('fraud_probability', 0) -
                     baseline_result.get('fraud_probability', 0)
                 ),
-                "both_agree": (baseline_result.get('is_fraud', False) == 
+                "both_agree": (baseline_result.get('is_fraud', False) ==
                               candidate_result.get('is_fraud', False))
             }
         }
@@ -428,7 +428,7 @@ Transaction 1: FRAUD ($38.50)
    Debug: Sending request to http://192.168.1.212/v2/models/fraud-v1-baseline/infer
    Debug: Using Seldon resource name: fraud-v1-baseline
    Debug: HTTP 200
-   
+
 🧪 A/B Test Prediction (Pattern 3)
    📊 Results:
    Baseline (v1): 0.999876 (🚨 HIGH RISK) ✅ Correct
@@ -492,7 +492,7 @@ from prometheus_client import Counter, Histogram, Gauge
 
 # Fraud-specific metrics for Pattern 3 architecture
 FRAUD_REQUESTS = Counter('fraud_requests_total',
-                        'Total fraud detection requests via seldon-mesh', 
+                        'Total fraud detection requests via seldon-mesh',
                         ['model_name', 'prediction', 'architecture_pattern'])
 
 FRAUD_RESPONSE_TIME = Histogram('fraud_response_time_seconds',
@@ -508,20 +508,20 @@ class FraudMetricsCollector:
         # Record prediction via Pattern 3 architecture
         prediction = "fraud" if is_fraud else "normal"
         FRAUD_REQUESTS.labels(
-            model_name=model_name, 
+            model_name=model_name,
             prediction=prediction,
             architecture_pattern="pattern_3"
         ).inc()
-        
+
         # Update online accuracy metrics
         correct = (is_fraud == actual_fraud)
         current_accuracy = self._calculate_online_accuracy(model_name, correct)
         FRAUD_ACCURACY.labels(
-            model_name=model_name, 
+            model_name=model_name,
             metric_type="accuracy",
             validation_type="online"
         ).set(current_accuracy)
-    
+
     def record_response_time(self, model_name: str, duration: float):
         FRAUD_RESPONSE_TIME.labels(
             model_name=model_name,
@@ -536,7 +536,7 @@ class FraudMetricsCollector:
 fraud_model_accuracy{model_name="fraud-v1-baseline", metric_type="recall", validation_type="online"} 73.33
 fraud_model_accuracy{model_name="fraud-v2-candidate", metric_type="recall", validation_type="online"} 100.0
 
-fraud_model_accuracy{model_name="fraud-v1-baseline", metric_type="precision", validation_type="online"} 95.65  
+fraud_model_accuracy{model_name="fraud-v1-baseline", metric_type="precision", validation_type="online"} 95.65
 fraud_model_accuracy{model_name="fraud-v2-candidate", metric_type="precision", validation_type="online"} 96.77
 
 fraud_response_time_seconds_bucket{model_name="fraud-v1-baseline", endpoint_type="seldon_mesh_loadbalancer", le="0.2"} 1425
@@ -563,7 +563,7 @@ groups:
     annotations:
       summary: "seldon-mesh LoadBalancer is down - Pattern 3 architecture failure"
       description: "Pattern 3 external access point unavailable"
-      
+
   - alert: HighFalsePositiveRate
     expr: (1 - fraud_model_accuracy{metric_type="precision", validation_type="online"}) > 0.05
     for: 10m
@@ -572,7 +572,7 @@ groups:
     annotations:
       summary: "High false positive rate detected: {{ $value }}"
       description: "Online precision below 95% for model {{ $labels.model_name }}"
-      
+
   - alert: LowFraudRecall
     expr: fraud_model_accuracy{metric_type="recall", validation_type="online"} < 70
     for: 5m
@@ -581,11 +581,11 @@ groups:
     annotations:
       summary: "Fraud detection recall below 70%"
       description: "Online recall degradation for {{ $labels.model_name }}"
-      
+
   - alert: ABTrafficImbalance
     expr: |
       abs(
-        (sum(rate(fraud_requests_total{model_name="fraud-v1-baseline", architecture_pattern="pattern_3"}[5m])) / 
+        (sum(rate(fraud_requests_total{model_name="fraud-v1-baseline", architecture_pattern="pattern_3"}[5m])) /
          sum(rate(fraud_requests_total{architecture_pattern="pattern_3"}[5m]))) - 0.8
       ) > 0.15
     for: 15m
@@ -631,24 +631,24 @@ def make_fraud_model_decision(online_metrics, offline_metrics):
     """
     Automated decision making for fraud detection models using online validation
     """
-    
+
     # Extract online performance (ground truth)
     online_recall_baseline = online_metrics['fraud_v1_recall']
-    online_recall_candidate = online_metrics['fraud_v2_recall'] 
+    online_recall_candidate = online_metrics['fraud_v2_recall']
     online_precision_baseline = online_metrics['fraud_v1_precision']
     online_precision_candidate = online_metrics['fraud_v2_precision']
-    
+
     # Calculate online improvements (most reliable)
     online_recall_improvement = online_recall_candidate - online_recall_baseline
     online_precision_change = online_precision_candidate - online_precision_baseline
-    
+
     # Business impact calculation based on online validation
     # Each 1% recall improvement prevents ~$100k annually
     # Each 1% precision improvement saves ~$50k annually in reduced investigations
     annual_fraud_prevented = online_recall_improvement * 100000
     annual_investigation_savings = online_precision_change * 50000
     net_annual_value = annual_fraud_prevented + annual_investigation_savings
-    
+
     # Decision criteria based on online validation
     if online_recall_improvement >= 30 and online_precision_change >= 0:
         return f"STRONG_RECOMMEND - Online validation shows exceptional performance: +{online_recall_improvement:.1f}% recall, +{online_precision_change:.1f}% precision. Net value: ${net_annual_value:,.0f}"
@@ -668,43 +668,43 @@ class FraudBusinessImpactAnalyzer:
         self.fraud_loss_per_transaction = 150.0  # Average fraud loss
         self.investigation_cost = 25.0           # Cost per false positive
         self.daily_transaction_volume = 10000    # Daily transactions
-        
+
     def calculate_online_business_impact(self, online_metrics):
         """Calculate business impact using validated online performance"""
-        
+
         baseline_daily_volume = self.daily_transaction_volume * 0.8  # 80% traffic
         candidate_daily_volume = self.daily_transaction_volume * 0.2  # 20% traffic
         fraud_rate = 0.01  # 1% of transactions are fraudulent
-        
+
         # Baseline performance (online validated)
         baseline_recall = online_metrics['baseline_recall'] / 100  # 73.33%
         baseline_precision = online_metrics['baseline_precision'] / 100  # 95.65%
         baseline_false_positive_rate = 1 - baseline_precision
-        
+
         baseline_fraud_caught = baseline_daily_volume * fraud_rate * baseline_recall
         baseline_false_positives = baseline_daily_volume * baseline_false_positive_rate
-        
-        # Candidate performance (online validated) 
+
+        # Candidate performance (online validated)
         candidate_recall = online_metrics['candidate_recall'] / 100  # 100%
         candidate_precision = online_metrics['candidate_precision'] / 100  # 96.77%
         candidate_false_positive_rate = 1 - candidate_precision
-        
+
         candidate_fraud_caught = candidate_daily_volume * fraud_rate * candidate_recall
         candidate_false_positives = candidate_daily_volume * candidate_false_positive_rate
-        
+
         # Business impact calculation
         if baseline_daily_volume > 0:  # Normalize to same volume for comparison
             normalized_baseline_fraud_caught = baseline_fraud_caught * (candidate_daily_volume / baseline_daily_volume)
             normalized_baseline_false_positives = baseline_false_positives * (candidate_daily_volume / baseline_daily_volume)
-            
+
             additional_fraud_prevented = candidate_fraud_caught - normalized_baseline_fraud_caught
             additional_false_positives = candidate_false_positives - normalized_baseline_false_positives
-            
+
             daily_fraud_savings = additional_fraud_prevented * self.fraud_loss_per_transaction
             daily_investigation_cost = additional_false_positives * self.investigation_cost
-            
+
             net_daily_impact = daily_fraud_savings - daily_investigation_cost
-            
+
             return {
                 "additional_fraud_prevented_daily": additional_fraud_prevented,
                 "additional_investigation_cost_daily": additional_false_positives * self.investigation_cost,
@@ -727,23 +727,23 @@ class FraudBusinessImpactAnalyzer:
 # This single validation step prevented a production disaster
 def validate_preprocessing_pipeline():
     """Essential validation before production deployment"""
-    
+
     # 1. Feature ordering validation
     training_order = load_training_feature_order()
     production_order = get_production_api_feature_order()
     assert training_order == production_order, "Feature ordering mismatch!"
-    
+
     # 2. Scaling parameter validation
     training_scaler = load_training_scaler()
     production_scaler = initialize_production_scaler()
     assert np.allclose(training_scaler.mean_, production_scaler.mean_), "Scaler mean mismatch!"
-    
+
     # 3. Model naming validation
     seldon_names = ["fraud-v1-baseline", "fraud-v2-candidate"]
     for name in seldon_names:
         response = test_model_endpoint(name)
         assert response.status_code == 200, f"Model {name} not accessible!"
-    
+
     return "PREPROCESSING_VALIDATED"
 ```
 

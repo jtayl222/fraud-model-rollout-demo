@@ -51,7 +51,7 @@ curl -X POST http://192.168.1.202/v2/models/fraud-v1-baseline/infer \
       "name": "fraud_features",
       "shape": [1, 30],
       "datatype": "FP32",
-      "data": [12345.0, 150.5, 0.497, -0.138, 0.648, 1.523, -0.234, -0.234, 
+      "data": [12345.0, 150.5, 0.497, -0.138, 0.648, 1.523, -0.234, -0.234,
                1.579, 0.767, -0.469, 0.543, -0.466, 0.242, -1.913, -1.725,
                0.820, 0.744, 0.124, 0.402, -0.685, 0.903, 1.993, 0.413,
                0.665, -0.379, 0.762, 0.421, 0.895, 0.965]
@@ -136,7 +136,7 @@ import json
 
 def predict_fraud(features):
     """Send fraud detection request using V2 format"""
-    
+
     payload = {
         "parameters": {"content_type": "np"},
         "inputs": [{
@@ -146,7 +146,7 @@ def predict_fraud(features):
             "data": features
         }]
     }
-    
+
     response = requests.post(
         "http://192.168.1.202/v2/models/fraud-v1-baseline/infer",
         headers={
@@ -155,7 +155,7 @@ def predict_fraud(features):
         },
         json=payload
     )
-    
+
     if response.status_code == 200:
         result = response.json()
         prediction = result["outputs"][0]["data"][0]

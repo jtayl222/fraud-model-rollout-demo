@@ -49,8 +49,8 @@ Dense(1)   → Sigmoid → Fraud probability ∈ [0,1]
 Fraud rate is \~1%, so we **compute class weights dynamically**:
 
 ```python
-weight_for_0 = (num_legit / total_samples)  
-weight_for_1 = (num_fraud / total_samples)^-1  
+weight_for_0 = (num_legit / total_samples)
+weight_for_1 = (num_fraud / total_samples)^-1
 ```
 
 Pass into `model.fit(..., class_weight=class_weights)` so the model doesn’t ignore fraud cases.
