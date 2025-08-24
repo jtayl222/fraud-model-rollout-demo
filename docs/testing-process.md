@@ -53,7 +53,7 @@ The `requirements.txt` includes:
 **Expected Output**:
 - `./data/enriched/fraud_dataset.csv` (~1M rows)
 - `./data/splits/train_v1.csv` (Jan-Dec 2023 data)
-- `./data/splits/train_v2.csv` (Jan 2023-Mar 2024 data)  
+- `./data/splits/train_v2.csv` (Jan 2023-Mar 2024 data)
 - `./data/splits/holdout_test.csv` (Feb-Mar 2024 test data)
 
 **Success Criteria**:
@@ -281,8 +281,63 @@ black .
 black --check src/baseline.py
 ```
 
+### Import Sorting with isort
+```bash
+# Check import sorting
+isort --check-only . --profile=black
+
+# Sort imports
+isort . --profile=black
+```
+
+### Pre-commit Validation
+```bash
+# Run all pre-commit hooks
+pre-commit run --all-files
+
+# Run specific hooks
+pre-commit run black --all-files
+pre-commit run isort --all-files
+```
+
 ### Running Tests with Black Applied
 After Black formatting (completed), all scripts should run identically as before. The formatting changes are purely cosmetic and don't affect functionality.
+
+## Kubernetes Testing
+
+### Test Deployment in Existing Cluster
+```bash
+# Run comprehensive K8s test
+./scripts/test-k8s-deployment.sh
+
+# Test with specific namespace
+NAMESPACE=financial-ml ./scripts/test-k8s-deployment.sh
+```
+
+This script will:
+1. Verify cluster connection
+2. Check Seldon Core installation
+3. Deploy fraud detection models
+4. Wait for models to be ready
+5. Test model predictions
+6. Check for errors in logs
+7. Report deployment status
+
+### Manual K8s Validation
+```bash
+# Check deployed models
+kubectl get models -A | grep fraud
+
+# Check running pods
+kubectl get pods -A | grep -E "(fraud|mlserver)"
+
+# Test model endpoint
+kubectl port-forward -n <namespace> svc/fraud-mlserver 8080:8080
+curl -X POST http://localhost:8080/v2/models/fraud-model/infer -d @test-request.json
+```
+
+For a complete testing guide including K8s deployment validation, see:
+- [Comprehensive Testing Checklist](comprehensive-testing-checklist.md)
 
 ## Next Steps
 
