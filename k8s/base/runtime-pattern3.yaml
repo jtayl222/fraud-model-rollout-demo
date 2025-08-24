@@ -1,6 +1,6 @@
 ---
 # Pattern 3: Runtime components deployment instructions
-# 
+#
 # For Pattern 3, the runtime components (scheduler, envoy, gateways) are deployed
 # to each application namespace using the seldon-core-v2-runtime helm chart.
 #

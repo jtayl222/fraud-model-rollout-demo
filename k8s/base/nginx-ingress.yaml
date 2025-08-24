@@ -60,8 +60,8 @@ spec:
             name: fraud-detection-seldon
             port:
               number: 9000
-      
-  
+
+
   # Additional host for A/B testing demo (host-based routing)
   - host: fraud-detection.local
     http:

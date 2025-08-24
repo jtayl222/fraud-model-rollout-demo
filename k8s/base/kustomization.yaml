@@ -11,17 +11,17 @@ metadata:
 resources:
   # Namespace
   - namespace.yaml
-  
+
   # Configuration
   - model-config.yaml
-  
+
   # Storage
   - fraud-model-pvc.yaml
-  
+
   # RBAC
   - rbac.yaml
   - seldon-controller-rbac.yaml
-  
+
   # Seldon Core Configuration
   # Pattern 3: ServerConfig in seldon-system namespace
   - server-config-centralized.yaml
@@ -29,19 +29,19 @@ resources:
   # - seldon-runtime.yaml  # Not used in Pattern 3
   # - server-config-scoped.yaml  # Not used in Pattern 3
   - mlserver.yaml
-  
+
   # Model Deployment and A/B Testing
   - fraud-model-ab-test.yaml
-  
+
   # Networking (if needed)
   - fraud-model-predictor-vs.yaml
   # - nginx-ingress.yaml  # Commented out to avoid conflicts with existing ingress
   - network-policy.yaml
-  
+
   # Event-driven workflows
   - event-source.yaml
   - sensor.yaml
-  
+
   # Training Pipelines (separate deployment)
   - fraud-model-data-pipeline.yaml
   - training-pipeline.yaml

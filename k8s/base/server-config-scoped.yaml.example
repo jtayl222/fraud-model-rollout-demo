@@ -20,7 +20,7 @@ spec:
       envFrom:
       # Replace 'your-s3-credentials-secret' with your actual secret name containing:
       # - AWS_ACCESS_KEY_ID
-      # - AWS_SECRET_ACCESS_KEY  
+      # - AWS_SECRET_ACCESS_KEY
       # - AWS_DEFAULT_REGION
       # - S3_ENDPOINT_URL (if using MinIO/custom S3)
       - secretRef:

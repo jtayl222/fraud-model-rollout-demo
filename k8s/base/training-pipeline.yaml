@@ -6,7 +6,7 @@ metadata:
 spec:
   entrypoint: train-model
   serviceAccountName: argo-workflow-sa
-  
+
   podSpecPatch: |
     initContainers:
     - name: init
@@ -56,7 +56,7 @@ spec:
       - name: model-version
     container:
       image: harbor.test/library/fraud-detector:latest
-      command: 
+      command:
       - sh
       - -c
       - |
@@ -99,6 +99,6 @@ spec:
         limits:
           memory: "4Gi"
           cpu: "2"
-  
+
   # imagePullSecrets:
   # - name: ghcr

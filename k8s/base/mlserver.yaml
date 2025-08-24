@@ -8,6 +8,6 @@ metadata:
     app.kubernetes.io/part-of: fraud-detection-system
     app.kubernetes.io/managed-by: kustomize
 spec:
-  serverConfig: mlserver-config  # Pattern 3: References ServerConfig in seldon-system namespace
-  capabilities: ["mlserver", "alibi-detect", "alibi-explain", "huggingface", "lightgbm", "mlflow", "python", "sklearn", "spark-mlib", "xgboost", "torch", "numpy"]
+  serverConfig: mlserver-config  # References local ServerConfig in fraud-detection namespace
+  capabilities: ["mlserver", "mlflow", "sklearn"]
   replicas: 1

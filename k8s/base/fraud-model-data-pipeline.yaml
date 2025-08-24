@@ -6,11 +6,11 @@ metadata:
 spec:
   entrypoint: data-ingestion-and-feature-engineering
   serviceAccountName: argo-workflow-sa
-  
+
   # Global resource defaults for all containers
   podGC:
     strategy: OnPodSuccess
-  
+
   # Resource requirements for Argo system containers
   podSpecPatch: |
     initContainers:
@@ -39,7 +39,7 @@ spec:
         limits:
           cpu: 2
           memory: 4Gi
-  
+
   volumes:
   - name: fraud-raw-data-pvc
     persistentVolumeClaim:
@@ -129,6 +129,6 @@ spec:
       securityContext:
         runAsNonRoot: false
         runAsUser: 0
-  
+
   # imagePullSecrets:
   # - name: ghcr

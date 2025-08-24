@@ -93,11 +93,11 @@ spec:
     # Example values for a 5-node cluster with 36 total CPUs:
     requests.cpu: "24"          # ~67% of cluster CPU capacity (adjust for your cluster)
     requests.memory: 96Gi       # Adjust based on available cluster memory
-    
+
     # Pod limits to prevent resource exhaustion
     count/pods: "150"                           # Adjust based on cluster capacity
     count/workflows.argoproj.io: "50"           # Limit concurrent workflows
-    
+
     # Fraud detection specific resource limits
     count/models.mlops.seldon.io: "20"          # Maximum number of models
     count/experiments.mlops.seldon.io: "10"     # Maximum number of experiments

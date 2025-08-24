@@ -1,6 +1,6 @@
 
 # Application-Level Network Policy for fraud-detection namespace
-# 
+#
 # SCOPE: This policy manages application-specific networking rules within our namespace.
 # COORDINATION: Cross-namespace and cluster-wide policies are managed by Platform Team.
 # REFERENCE: See NETWORK-POLICY-GUIDELINES.md for full responsibility matrix.
