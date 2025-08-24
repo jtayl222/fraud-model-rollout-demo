@@ -3,9 +3,7 @@
 Push fraud detection A/B test metrics to Prometheus Pushgateway.
 """
 
-import json
 import random
-import time
 
 import numpy as np
 import requests
@@ -130,7 +128,7 @@ def simulate_fraud_metrics(metrics):
         ("fraud-v2-candidate", candidate_metrics),
     ]
 
-    print(f"📊 Pushing fraud detection metrics to Pushgateway")
+    print("📊 Pushing fraud detection metrics to Pushgateway")
     print(f"   Experiment: {experiment}")
 
     for model_name, model_metrics in models:
@@ -244,7 +242,7 @@ def main():
             registry=registry,
             grouping_key={"instance": INSTANCE_NAME},
         )
-        print(f"\n✅ Successfully pushed metrics to Pushgateway!")
+        print("\n✅ Successfully pushed metrics to Pushgateway!")
         print(f"   View at: http://{PUSHGATEWAY_URL}")
 
     except Exception as e:
@@ -252,19 +250,19 @@ def main():
         return 1
 
     # Provide monitoring URLs
-    print(f"\n🎯 Monitoring Endpoints:")
+    print("\n🎯 Monitoring Endpoints:")
     print(f"   📊 Pushgateway: http://{PUSHGATEWAY_URL}")
     print(f"   📈 Metrics: http://{PUSHGATEWAY_URL}/metrics")
-    print(f"   🎭 Demo: View fraud detection A/B test metrics")
+    print("   🎭 Demo: View fraud detection A/B test metrics")
 
-    print(f"\n📋 Key Metrics Available:")
-    print(f"   • fraud_model_accuracy - Overall model accuracy")
-    print(f"   • fraud_model_recall - Fraud detection rate (key metric)")
-    print(f"   • fraud_model_precision - False positive control")
-    print(f"   • fraud_traffic_weight - A/B traffic distribution")
-    print(f"   • fraud_detection_rate - Business impact metric")
+    print("\n📋 Key Metrics Available:")
+    print("   • fraud_model_accuracy - Overall model accuracy")
+    print("   • fraud_model_recall - Fraud detection rate (key metric)")
+    print("   • fraud_model_precision - False positive control")
+    print("   • fraud_traffic_weight - A/B traffic distribution")
+    print("   • fraud_detection_rate - Business impact metric")
 
-    print(f"\n🎉 Phase 6 Metrics Collection: OPERATIONAL")
+    print("\n🎉 Phase 6 Metrics Collection: OPERATIONAL")
     return 0
 
 

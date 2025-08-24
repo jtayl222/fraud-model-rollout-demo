@@ -12,9 +12,8 @@ This is a TESTING/VALIDATION tool, not the actual production service.
 Real applications should implement the preprocessing logic shown here.
 """
 
-import json
 import time
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, List
 
 import numpy as np
 import pandas as pd
@@ -207,7 +206,7 @@ class FraudDetectionService:
         Returns:
             Comparison results from both models
         """
-        print(f"\n🧪 A/B Test Prediction")
+        print("\n🧪 A/B Test Prediction")
         print(f"   Amount: ${transaction_data.get('Amount', 0):.2f}")
         print(f"   Time: {transaction_data.get('Time', 0)}")
 
@@ -215,7 +214,7 @@ class FraudDetectionService:
         baseline_result = self.predict_fraud(transaction_data, "fraud-v1-baseline")
         candidate_result = self.predict_fraud(transaction_data, "fraud-v2-candidate")
 
-        print(f"\n   📊 Results:")
+        print("\n   📊 Results:")
         print(
             f"   Baseline (v1): {baseline_result.get('fraud_probability', 0):.6f} "
             f"({baseline_result.get('risk_level', 'Unknown')})"
@@ -362,7 +361,7 @@ def test_production_service():
         print(f"   ✅ Candidate correct: {candidate_correct}")
 
     # Summary
-    print(f"\n📈 Test Summary")
+    print("\n📈 Test Summary")
     print("=" * 30)
 
     baseline_correct = 0
@@ -387,7 +386,7 @@ def test_production_service():
         [r["candidate_result"]["fraud_probability"] for r in results]
     )
 
-    print(f"Average fraud probability:")
+    print("Average fraud probability:")
     print(f"  Baseline: {avg_baseline_prob:.4f}")
     print(f"  Candidate: {avg_candidate_prob:.4f}")
 
@@ -405,9 +404,9 @@ def main():
 
     try:
         # Run comprehensive test
-        results = test_production_service()
+        test_production_service()
 
-        print(f"\n🎉 Production Service Test Complete!")
+        print("\n🎉 Production Service Test Complete!")
         print("=" * 40)
         print("✅ Feature preprocessing: Working")
         print("✅ Model inference: Working")

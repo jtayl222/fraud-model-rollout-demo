@@ -54,7 +54,7 @@ def parse_args():
 def read_s3_uri_from_file(filepath):
     """Read S3 URI from saved file"""
     try:
-        with open(filepath, "r") as f:
+        with open(filepath) as f:
             return f.read().strip()
     except FileNotFoundError:
         return None
@@ -64,7 +64,7 @@ def update_model_config(config_file, v1_uri, v2_uri, baseline_weight, candidate_
     """Update the model-config.yaml file with new values"""
 
     # Load existing config
-    with open(config_file, "r") as f:
+    with open(config_file) as f:
         config = yaml.safe_load(f)
 
     # Update data section
@@ -125,8 +125,8 @@ def main():
         args.config_file, v1_uri, v2_uri, args.baseline_weight, args.candidate_weight
     )
 
-    print(f"\n🚀 Ready to deploy!")
-    print(f"   kubectl apply -k k8s/base/")
+    print("\n🚀 Ready to deploy!")
+    print("   kubectl apply -k k8s/base/")
 
     return 0
 

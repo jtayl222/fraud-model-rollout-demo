@@ -15,15 +15,12 @@ Usage:
 """
 
 import argparse
-import json
 import logging
-import threading
 import time
-import warnings
 from collections import deque
 from dataclasses import dataclass
 from datetime import datetime, timedelta
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, List, Optional
 
 import numpy as np
 import pandas as pd
@@ -228,7 +225,6 @@ class OnlineValidator:
                 and current_time - transaction.timestamp
                 > timedelta(minutes=FEEDBACK_DELAY_MINUTES)
             ):
-
                 transaction.feedback_received = True
                 feedback_count += 1
 
@@ -242,7 +238,7 @@ class OnlineValidator:
         try:
             recent_df = pd.DataFrame(recent_features, columns=self.feature_columns)
             recent_mean = recent_df.mean()
-            recent_std = recent_df.std()
+            # recent_std = recent_df.std()  # Not used in current drift calculation
 
             # Calculate normalized drift score (simplified PSI)
             drift_scores = []
@@ -472,7 +468,7 @@ class OnlineValidator:
     def run_validation_cycle(self, batch_size: int = 100):
         """Run one complete validation cycle using UNSEEN holdout data"""
         self.logger.info(f"\n{'='*60}")
-        self.logger.info(f"STARTING VALIDATION CYCLE - UNSEEN DATA TEST")
+        self.logger.info("STARTING VALIDATION CYCLE - UNSEEN DATA TEST")
         self.logger.info(f"{'='*60}")
         self.logger.info(f"Batch size: {batch_size}")
 
@@ -524,7 +520,7 @@ class OnlineValidator:
 
         # Immediate validation with ground truth (simulating collected feedback)
         self.logger.info(f"\n{'='*50}")
-        self.logger.info(f"PERFORMANCE VALIDATION ON UNSEEN Q1 2024 DATA")
+        self.logger.info("PERFORMANCE VALIDATION ON UNSEEN Q1 2024 DATA")
         self.logger.info(f"{'='*50}")
 
         # Validate performance for both models
@@ -537,7 +533,7 @@ class OnlineValidator:
 
         if baseline_result and candidate_result:
             # Display detailed comparison
-            self.logger.info(f"\n📊 MODEL COMPARISON ON UNSEEN HOLDOUT DATA")
+            self.logger.info("\n📊 MODEL COMPARISON ON UNSEEN HOLDOUT DATA")
             self.logger.info(f"{'='*55}")
             self.logger.info(
                 f"{'Metric':<12} | {'Baseline (v1)':<13} | {'Candidate (v2)':<14} | {'Improvement':<12}"
@@ -579,7 +575,7 @@ class OnlineValidator:
                 else 0
             )
 
-            self.logger.info(f"\n🎯 KEY INSIGHTS:")
+            self.logger.info("\n🎯 KEY INSIGHTS:")
             self.logger.info(
                 f"   Recall Improvement: {recall_improvement:+.1f}% (v2 vs v1)"
             )
@@ -590,7 +586,7 @@ class OnlineValidator:
             # Validation against expected behavior
             if recall_improvement >= 5:
                 self.logger.info(
-                    f"✅ EXPECTED: Candidate v2 shows >5% recall improvement on NEW fraud patterns"
+                    "✅ EXPECTED: Candidate v2 shows >5% recall improvement on NEW fraud patterns"
                 )
             else:
                 self.logger.warning(
@@ -598,7 +594,7 @@ class OnlineValidator:
                 )
 
             if abs(precision_change) <= 5:
-                self.logger.info(f"✅ EXPECTED: Precision remains stable (±5%)")
+                self.logger.info("✅ EXPECTED: Precision remains stable (±5%)")
             else:
                 self.logger.warning(
                     f"⚠️  UNEXPECTED: Precision changed by {precision_change:.1f}%"
@@ -609,18 +605,18 @@ class OnlineValidator:
             candidate_alerts = self.check_performance_alerts(candidate_result)
 
             if baseline_alerts:
-                self.logger.warning(f"\n🚨 BASELINE (v1) ALERTS:")
+                self.logger.warning("\n🚨 BASELINE (v1) ALERTS:")
                 for alert in baseline_alerts:
                     self.logger.warning(f"   - {alert}")
 
             if candidate_alerts:
-                self.logger.warning(f"\n🚨 CANDIDATE (v2) ALERTS:")
+                self.logger.warning("\n🚨 CANDIDATE (v2) ALERTS:")
                 for alert in candidate_alerts:
                     self.logger.warning(f"   - {alert}")
 
             if not baseline_alerts and not candidate_alerts:
                 self.logger.info(
-                    f"\n✅ Both models performing within acceptable ranges on unseen data"
+                    "\n✅ Both models performing within acceptable ranges on unseen data"
                 )
 
         else:
@@ -629,7 +625,7 @@ class OnlineValidator:
             )
 
         self.logger.info(f"\n{'='*60}")
-        self.logger.info(f"VALIDATION CYCLE COMPLETED")
+        self.logger.info("VALIDATION CYCLE COMPLETED")
         self.logger.info(f"{'='*60}")
 
     def run_continuous_validation(

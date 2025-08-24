@@ -6,8 +6,6 @@ Checks available metrics endpoints and provides setup guidance.
 
 import json
 import subprocess
-import sys
-import time
 
 import requests
 
@@ -39,14 +37,14 @@ def check_metrics_endpoints():
             response = requests.get(url, headers=headers, timeout=5)
 
             if response.status_code == 200:
-                print(f"✅ Available")
+                print("✅ Available")
                 available_endpoints.append((name, url))
 
                 # Sample metrics data
                 if "metrics" in url:
                     lines = response.text.split("\n")
                     metric_count = len(
-                        [l for l in lines if l and not l.startswith("#")]
+                        [line for line in lines if line and not line.startswith("#")]
                     )
                     print(f"   📊 {metric_count} metrics available")
 
@@ -61,7 +59,7 @@ def check_metrics_endpoints():
 
 def check_kubernetes_monitoring():
     """Check if Kubernetes cluster has existing monitoring"""
-    print(f"\n🔍 Checking Kubernetes Monitoring Infrastructure")
+    print("\n🔍 Checking Kubernetes Monitoring Infrastructure")
     print("=" * 50)
 
     monitoring_components = [
@@ -83,23 +81,23 @@ def check_kubernetes_monitoring():
             )
 
             if result.returncode == 0 and result.stdout.strip():
-                print(f"✅ Found")
+                print("✅ Found")
                 lines = result.stdout.strip().split("\n")
                 if len(lines) > 1:  # Has content beyond headers
                     print(f"   📊 {len(lines)-1} instances")
                 existing_monitoring.append((name, result.stdout))
             else:
-                print(f"❌ Not found")
+                print("❌ Not found")
 
-        except Exception as e:
-            print(f"❌ Error")
+        except Exception:
+            print("❌ Error")
 
     return existing_monitoring
 
 
 def create_prometheus_config():
     """Create Prometheus configuration for fraud detection monitoring"""
-    print(f"\n🔧 Creating Prometheus Configuration")
+    print("\n🔧 Creating Prometheus Configuration")
     print("=" * 40)
 
     prometheus_config = {
@@ -156,7 +154,7 @@ def create_prometheus_config():
 
 def create_grafana_dashboard():
     """Create Grafana dashboard JSON for fraud detection A/B test"""
-    print(f"\n🎨 Creating Grafana Dashboard")
+    print("\n🎨 Creating Grafana Dashboard")
     print("=" * 30)
 
     dashboard = {
@@ -224,7 +222,7 @@ def create_grafana_dashboard():
 
 def create_alert_rules():
     """Create Prometheus alert rules for fraud detection"""
-    print(f"\n🚨 Creating Alert Rules")
+    print("\n🚨 Creating Alert Rules")
     print("=" * 25)
 
     alert_rules = """
@@ -283,7 +281,7 @@ groups:
 
 def provide_setup_instructions(available_endpoints, existing_monitoring):
     """Provide customized setup instructions based on environment"""
-    print(f"\n🚀 Monitoring Setup Instructions")
+    print("\n🚀 Monitoring Setup Instructions")
     print("=" * 35)
 
     if existing_monitoring:
@@ -343,14 +341,14 @@ def main():
     existing_monitoring = check_kubernetes_monitoring()
 
     # Create monitoring configurations
-    prometheus_config = create_prometheus_config()
-    dashboard_file = create_grafana_dashboard()
-    alert_rules = create_alert_rules()
+    create_prometheus_config()
+    create_grafana_dashboard()
+    create_alert_rules()
 
     # Provide setup instructions
     provide_setup_instructions(available_endpoints, existing_monitoring)
 
-    print(f"\n🎉 Monitoring Setup Complete!")
+    print("\n🎉 Monitoring Setup Complete!")
     print("=" * 30)
     print("✅ Prometheus configuration created")
     print("✅ Grafana dashboard created")

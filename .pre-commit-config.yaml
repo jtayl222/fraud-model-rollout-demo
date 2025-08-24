@@ -35,6 +35,13 @@ repos:
       - id: isort
         args: ['--profile=black', '--line-length=88']
 
+  # Ruff - Fast Python linter with auto-fix (linting only, Black handles formatting)
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.7.3
+    hooks:
+      - id: ruff
+        args: [--fix, --exit-non-zero-on-fix]
+
   # TODO: Enable in next commit
   # # Flake8 - Python linting (optional, complements Black)
   # - repo: https://github.com/PyCQA/flake8

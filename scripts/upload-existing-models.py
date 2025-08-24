@@ -49,7 +49,6 @@ def upload_model_to_mlflow(model_path, model_version, model_type):
 
     # Start MLflow run to upload model
     with mlflow.start_run(run_name=f"fraud_{model_version}_{model_type}_upload"):
-
         # Log metadata from status.md results
         mlflow.log_param("model_version", model_version)
         mlflow.log_param("model_type", model_type)
@@ -70,7 +69,7 @@ def upload_model_to_mlflow(model_path, model_version, model_type):
             mlflow.log_metric("roc_auc", 1.0000)
 
         # Upload model to S3
-        mlflow.tensorflow.log_model(model, artifact_path=ARTIFACT_PATH)
+        mlflow.tensorflow.log_model(model, ARTIFACT_PATH=ARTIFACT_PATH)
 
         # Get S3 URI
         run = mlflow.active_run()
@@ -100,7 +99,7 @@ def upload_model_to_mlflow(model_path, model_version, model_type):
         mlflow.set_tag("model_version", model_version)
         mlflow.set_tag("model_type", model_type)
         mlflow.set_tag("deployment_ready", "true")
-        mlflow.set_tag("artifact_path", ARTIFACT_PATH)
+        mlflow.set_tag("ARTIFACT_PATH", ARTIFACT_PATH)
 
         return s3_uri
 
@@ -120,12 +119,12 @@ def main():
     s3_uri_v2 = upload_model_to_mlflow("models/fraud_v2.keras", "v2", "candidate")
 
     if s3_uri_v1 and s3_uri_v2:
-        print(f"\n🎉 Both models uploaded successfully!")
+        print("\n🎉 Both models uploaded successfully!")
         print(f"✅ V1 Baseline: {s3_uri_v1}")
         print(f"✅ V2 Candidate: {s3_uri_v2}")
-        print(f"\n🚀 Next step: python scripts/update-model-config.py")
+        print("\n🚀 Next step: python scripts/update-model-config.py")
     else:
-        print(f"\n❌ Model upload failed. Check MLflow connection.")
+        print("\n❌ Model upload failed. Check MLflow connection.")
         return 1
 
     return 0

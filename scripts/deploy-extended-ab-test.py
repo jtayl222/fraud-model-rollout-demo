@@ -429,7 +429,7 @@ def main():
     doc_path = create_phase_documentation()
 
     # Success Summary
-    print(f"\n🎉 EXTENDED A/B TEST DEPLOYMENT COMPLETE!")
+    print("\n🎉 EXTENDED A/B TEST DEPLOYMENT COMPLETE!")
     print("=" * 55)
     print("✅ Kubernetes cluster: Operational")
     print("✅ Model deployments: Both models serving correctly")

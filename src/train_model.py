@@ -128,7 +128,7 @@ def main():
     holdout_test_path = os.path.join(".", "data", "splits", "holdout_test.csv")
 
     if not os.path.exists(train_data_path) or not os.path.exists(holdout_test_path):
-        print(f"Error: Required data files not found.")
+        print("Error: Required data files not found.")
         print(f"Training data: {train_data_path}")
         print(f"Holdout test: {holdout_test_path}")
         return 1
@@ -196,7 +196,6 @@ def main():
 
     # Start MLflow run
     with mlflow.start_run(run_name=f"fraud_{MODEL_VERSION}_{MODEL_TYPE}_training"):
-
         # Log hyperparameters
         mlflow.log_param("model_version", MODEL_VERSION)
         mlflow.log_param("model_type", MODEL_TYPE)
@@ -211,7 +210,7 @@ def main():
 
         # Train the model
         print(f"\nTraining {MODEL_TYPE} model ({MODEL_VERSION})...")
-        history = model.fit(
+        model.fit(
             X_train_scaled,
             y_train,
             epochs=50,

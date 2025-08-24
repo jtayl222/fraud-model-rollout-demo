@@ -9,7 +9,6 @@ by testing different classification thresholds and visualizing the results.
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-import seaborn as sns
 import tensorflow as tf
 from sklearn.metrics import (
     confusion_matrix,
@@ -212,7 +211,7 @@ def main():
         print(
             f"✓ With threshold={optimal_threshold['threshold']}, the candidate model v2:"
         )
-        print(f"  - Maintains acceptable precision (>= 0.95)")
+        print("  - Maintains acceptable precision (>= 0.95)")
         print(
             f"  - Improves recall by {(optimal_threshold['recall']/0.7351 - 1)*100:.1f}%"
         )

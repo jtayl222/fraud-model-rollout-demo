@@ -14,3 +14,46 @@ extend-exclude = '''
   | \.ipynb_checkpoints
 )/
 '''
+
+[tool.ruff]
+line-length = 88
+target-version = "py38"
+extend-exclude = [
+    ".git",
+    ".venv",
+    "build",
+    "dist",
+    "data",
+    "models",
+    ".ipynb_checkpoints",
+]
+
+[tool.ruff.lint]
+# Enable commonly used rule sets
+select = [
+    "E",   # pycodestyle errors
+    "W",   # pycodestyle warnings
+    "F",   # pyflakes
+    "I",   # isort
+    "N",   # pep8-naming
+    "UP",  # pyupgrade
+    "B",   # flake8-bugbear
+    "C4",  # flake8-comprehensions
+    "SIM", # flake8-simplify
+]
+ignore = [
+    "E501",  # line too long (handled by black)
+    "B904",  # raise-without-from-inside-except
+    "B008",  # function-call-in-default-argument
+    "N806",  # variable in function should be lowercase (ignore for constants/env vars)
+    "N803",  # argument name should be lowercase (ignore for ML conventions like X_test)
+]
+
+[tool.ruff.lint.per-file-ignores]
+"scripts/*.py" = ["T201"]  # Allow print statements in scripts
+"src/download.py" = ["T201"]  # Allow print statements in download script
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
+docstring-code-format = true

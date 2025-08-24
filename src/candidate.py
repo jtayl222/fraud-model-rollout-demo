@@ -1,4 +1,3 @@
-import datetime
 import os
 
 import mlflow
@@ -13,7 +12,6 @@ from sklearn.metrics import (
     recall_score,
     roc_auc_score,
 )
-from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import StandardScaler
 
 # --- Configuration ---
@@ -151,7 +149,6 @@ callbacks_v2 = [
 
 # Start MLflow run for candidate training
 with mlflow.start_run(run_name="fraud_v2_candidate_training"):
-
     # Log hyperparameters
     mlflow.log_param("model_version", "v2")
     mlflow.log_param("model_type", "candidate")

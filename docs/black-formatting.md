@@ -1,15 +1,18 @@
-# Black Code Formatting Integration
+# Code Quality Integration: Black, isort, and Ruff
 
 ## Overview
-This document describes the Black code formatter integration into the fraud detection model project. Black is "the uncompromising Python code formatter" that ensures consistent code style across the entire codebase.
+This document describes the comprehensive code quality tooling integration into the fraud detection model project, including Black (formatting), isort (import organization), and Ruff (linting) to ensure consistent, high-quality Python code.
 
 ## What Was Done
 
-### 1. Added Black to Dependencies
+### 1. Added Code Quality Dependencies
 **File**: `requirements.txt`
 ```
-# Code formatting
+# Code formatting and quality
 black==24.10.0
+pre-commit==3.8.0
+isort==5.13.2
+ruff==0.7.3
 ```
 
 ### 2. Configuration Setup
@@ -31,6 +34,28 @@ extend-exclude = '''
   | \.ipynb_checkpoints
 )/
 '''
+
+[tool.ruff]
+line-length = 88
+target-version = "py38"
+extend-exclude = [
+    ".git", ".venv", "build", "dist", "data", "models", ".ipynb_checkpoints"
+]
+
+[tool.ruff.lint]
+# Enable commonly used rule sets
+select = ["E", "W", "F", "I", "N", "UP", "B", "C4", "SIM"]
+ignore = [
+    "E501",  # line too long (handled by black)
+    "B904",  # raise-without-from-inside-except
+    "B008",  # function-call-in-default-argument
+    "N806",  # variable in function should be lowercase (ignore for constants/env vars)
+    "N803",  # argument name should be lowercase (ignore for ML conventions like X_test)
+]
+
+[tool.ruff.lint.per-file-ignores]
+"scripts/*.py" = ["T201"]  # Allow print statements in scripts
+"src/download.py" = ["T201"]  # Allow print statements in download script
 ```
 
 ### 3. Files Formatted

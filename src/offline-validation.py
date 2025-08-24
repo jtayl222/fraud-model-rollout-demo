@@ -1,4 +1,3 @@
-import datetime
 import os
 
 import numpy as np
@@ -448,8 +447,8 @@ print(f"  AUC-ROC (v2):   {auc_v2_eval:.4f}")
 
 print("\nStep 4: Compare Models and Make a Deployment Decision...")
 print("\n--- Model Comparison on Holdout Set ---")
-print(f"Metric       | Baseline (v1) | Candidate (v2) | Improvement")
-print(f"-----------------------------------------------------------------")
+print("Metric       | Baseline (v1) | Candidate (v2) | Improvement")
+print("-----------------------------------------------------------------")
 print(
     f"Precision    | {precision_v1_eval:.4f}        | {precision_v2_eval:.4f}        | {precision_v2_eval - precision_v1_eval:+.4f}"
 )
