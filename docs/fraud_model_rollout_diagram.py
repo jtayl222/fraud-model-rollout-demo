@@ -1,13 +1,10 @@
-from diagrams import Diagram, Cluster, Edge
+from diagrams import Cluster, Diagram, Edge
 from diagrams.custom import Custom
-from diagrams.onprem.monitoring import Grafana, Prometheus
-from diagrams.aws.ml import TensorflowOnAWS
-from diagrams.onprem.container import Docker
-from diagrams.k8s.compute import Pod
-from diagrams.k8s.network import Ingress
-from diagrams.k8s.ecosystem import Helm
 from diagrams.generic.database import SQL
-from diagrams.custom import Custom
+from diagrams.k8s.compute import Pod
+from diagrams.k8s.ecosystem import Helm
+from diagrams.onprem.container import Docker
+from diagrams.onprem.monitoring import Grafana, Prometheus
 
 TENSORFLOW_ICON_PATH = "./images/tensorflow_logo.png"
 

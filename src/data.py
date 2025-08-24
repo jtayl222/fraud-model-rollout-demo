@@ -1,6 +1,7 @@
-import pandas as pd
-import numpy as np
 import os
+
+import numpy as np
+import pandas as pd
 
 # --- Step 1: Set up Your Project Environment ---
 print("Step 1: Setting up Project Environment...")

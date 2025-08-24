@@ -270,9 +270,37 @@ A: Black is opinionated by design. The benefit is consistency.
 **Q: Does Black support type hints?**
 A: Yes, Black properly formats type annotations.
 
+## isort Integration
+
+isort has been added to automatically organize and sort Python imports:
+
+### Configuration
+- **Profile**: Black-compatible (`--profile=black`)
+- **Line Length**: 88 characters (matches Black)
+- **Import Order**: Standard library → Third-party → Local
+
+### Usage
+```bash
+# Sort all imports
+isort .
+
+# Check import sorting
+isort --check-only .
+
+# Sort specific file
+isort src/baseline.py
+```
+
+### What isort Does
+- Groups imports (standard library, third-party, local)
+- Sorts imports alphabetically within groups
+- Removes duplicate imports
+- Formats multi-line imports consistently
+
 ## Resources
 
 - [Black Documentation](https://black.readthedocs.io/)
 - [Black GitHub](https://github.com/psf/black)
 - [Black Playground](https://black.vercel.app/)
 - [PEP 8](https://www.python.org/dev/peps/pep-0008/)
+- [isort Documentation](https://pycqa.github.io/isort/)

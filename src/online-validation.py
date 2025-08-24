@@ -15,26 +15,27 @@ Usage:
 """
 
 import argparse
-import time
 import json
-import requests
-import pandas as pd
-import numpy as np
+import logging
+import threading
+import time
+import warnings
+from collections import deque
+from dataclasses import dataclass
 from datetime import datetime, timedelta
-from typing import Dict, List, Tuple, Optional
+from typing import Dict, List, Optional, Tuple
+
+import numpy as np
+import pandas as pd
+import requests
 from sklearn.metrics import (
+    confusion_matrix,
+    f1_score,
     precision_score,
     recall_score,
-    f1_score,
     roc_auc_score,
-    confusion_matrix,
 )
 from sklearn.preprocessing import StandardScaler
-import logging
-from dataclasses import dataclass
-import threading
-from collections import deque
-import warnings
 
 # Configuration - Updated for Pattern 3
 # Use seldon-mesh LoadBalancer directly instead of Istio gateway

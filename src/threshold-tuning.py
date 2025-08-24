@@ -6,19 +6,19 @@ This script analyzes the precision-recall trade-off for the candidate model
 by testing different classification thresholds and visualizing the results.
 """
 
-import pandas as pd
+import matplotlib.pyplot as plt
 import numpy as np
+import pandas as pd
+import seaborn as sns
 import tensorflow as tf
-from sklearn.preprocessing import StandardScaler
 from sklearn.metrics import (
-    precision_recall_curve,
     confusion_matrix,
+    f1_score,
+    precision_recall_curve,
     precision_score,
     recall_score,
-    f1_score,
 )
-import matplotlib.pyplot as plt
-import seaborn as sns
+from sklearn.preprocessing import StandardScaler
 
 
 def load_model_and_data():

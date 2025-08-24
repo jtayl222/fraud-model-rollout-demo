@@ -4,11 +4,12 @@ Set up monitoring for the fraud detection A/B test.
 Checks available metrics endpoints and provides setup guidance.
 """
 
-import requests
-import subprocess
 import json
-import time
+import subprocess
 import sys
+import time
+
+import requests
 
 # Configuration
 SELDON_SCHEDULER = "http://192.168.1.201:9006"
@@ -238,7 +239,7 @@ groups:
     annotations:
       summary: "Fraud detection model is down"
       description: "Seldon scheduler has been down for more than 2 minutes"
-      
+
   - alert: HighModelErrorRate
     expr: rate(seldon_model_requests_failed_total[5m]) > 0.05
     for: 5m
@@ -247,7 +248,7 @@ groups:
     annotations:
       summary: "High error rate in fraud detection model"
       description: "Error rate is {{ $value }} for model {{ $labels.model_name }}"
-      
+
   - alert: SlowModelResponse
     expr: histogram_quantile(0.95, seldon_model_request_duration_seconds_bucket) > 1.0
     for: 10m
@@ -256,11 +257,11 @@ groups:
     annotations:
       summary: "Slow response time for fraud detection"
       description: "95th percentile response time is {{ $value }}s"
-      
+
   - alert: ABTrafficImbalance
     expr: |
       abs(
-        (sum(rate(seldon_model_requests_total{model_name="fraud-v1-baseline"}[5m])) / 
+        (sum(rate(seldon_model_requests_total{model_name="fraud-v1-baseline"}[5m])) /
          sum(rate(seldon_model_requests_total[5m]))) - 0.8
       ) > 0.15
     for: 15m

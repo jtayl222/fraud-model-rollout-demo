@@ -3,7 +3,7 @@
 Production Pipeline Validation Tool for Fraud Detection.
 
 This script validates that the production fraud detection pipeline works correctly by:
-- Testing proper feature preprocessing (scaling, ordering) 
+- Testing proper feature preprocessing (scaling, ordering)
 - Validating both V1/V2 models respond accurately
 - Demonstrating A/B testing with optimal thresholds
 - Proving the pipeline is ready for extended production A/B testing
@@ -13,12 +13,13 @@ Real applications should implement the preprocessing logic shown here.
 """
 
 import json
-import requests
+import time
+from typing import Dict, List, Optional, Tuple
+
 import numpy as np
 import pandas as pd
+import requests
 from sklearn.preprocessing import StandardScaler
-import time
-from typing import Dict, List, Tuple, Optional
 
 # Configuration
 # Use seldon-mesh LoadBalancer directly instead of Istio gateway

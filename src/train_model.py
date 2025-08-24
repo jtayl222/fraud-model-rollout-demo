@@ -6,10 +6,10 @@ Can train baseline (v1) or candidate (v2) models based on parameters.
 Usage:
     python src/train_model.py --model-type baseline --model-version v1
     python src/train_model.py --model-type candidate --model-version v2
-    
+
 Environment variables:
     MODEL_VERSION: v1, v2, v3, etc.
-    MODEL_TYPE: baseline, candidate, retrain, etc.  
+    MODEL_TYPE: baseline, candidate, retrain, etc.
     EXPERIMENT_NAME: Custom experiment name
     MODEL_REGISTRY_NAME: Custom registry name
     ARTIFACT_PATH: Custom S3 artifact path
@@ -17,19 +17,20 @@ Environment variables:
 
 import argparse
 import os
-import pandas as pd
-import numpy as np
-import tensorflow as tf
-from sklearn.preprocessing import StandardScaler
-from sklearn.metrics import (
-    precision_score,
-    recall_score,
-    f1_score,
-    roc_auc_score,
-    confusion_matrix,
-)
+
 import mlflow
 import mlflow.tensorflow
+import numpy as np
+import pandas as pd
+import tensorflow as tf
+from sklearn.metrics import (
+    confusion_matrix,
+    f1_score,
+    precision_score,
+    recall_score,
+    roc_auc_score,
+)
+from sklearn.preprocessing import StandardScaler
 
 
 def parse_args():

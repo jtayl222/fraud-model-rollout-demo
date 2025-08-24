@@ -6,18 +6,19 @@ This eliminates the need to manually copy-paste URIs.
 Usage:
     # Read URIs from saved files
     python scripts/update-model-config.py
-    
+
     # Specify URIs directly
     python scripts/update-model-config.py \
         --v1-uri "s3://mlflow-artifacts/40/abc123/artifacts/fraud-v1-baseline" \
         --v2-uri "s3://mlflow-artifacts/41/def456/artifacts/fraud-v2-candidate"
-        
+
     # Update traffic split too
     python scripts/update-model-config.py --baseline-weight 70 --candidate-weight 30
 """
 
 import argparse
 import os
+
 import yaml
 
 

@@ -3,15 +3,16 @@
 Push fraud detection A/B test metrics to Prometheus Pushgateway.
 """
 
-import requests
 import json
-import time
 import random
+import time
+
 import numpy as np
+import requests
 from prometheus_client import (
     CollectorRegistry,
-    Gauge,
     Counter,
+    Gauge,
     Histogram,
     push_to_gateway,
 )
