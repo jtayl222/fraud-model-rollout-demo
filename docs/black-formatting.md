@@ -95,27 +95,52 @@ black src/baseline.py
 black src/
 ```
 
-### Pre-commit Hook (Optional)
-To automatically format code before commits:
+### Pre-commit Hook ✅ (Configured)
+Pre-commit is now configured with Black and additional code quality tools.
 
-1. Install pre-commit:
-   ```bash
-   pip install pre-commit
-   ```
+#### Quick Setup
+```bash
+# Run the setup script
+./scripts/setup-pre-commit.sh
+```
 
-2. Create `.pre-commit-config.yaml`:
-   ```yaml
-   repos:
-   - repo: https://github.com/psf/black
-     rev: 24.10.0
-     hooks:
-     - id: black
-   ```
+Or manually:
+```bash
+# Install pre-commit
+pip install pre-commit==3.8.0
 
-3. Install the hook:
-   ```bash
-   pre-commit install
-   ```
+# Install git hooks
+pre-commit install
+
+# Run initial check
+pre-commit run --all-files
+```
+
+#### Configuration
+The `.pre-commit-config.yaml` includes:
+- **Black**: Code formatting (v24.10.0)
+- **Flake8**: Python linting
+- **isort**: Import sorting (Black-compatible)
+- **mypy**: Static type checking
+- **Standard hooks**: Trailing whitespace, YAML/JSON validation, etc.
+
+#### Usage
+```bash
+# Hooks run automatically on commit
+git commit -m "your message"
+
+# Manual run on all files
+pre-commit run --all-files
+
+# Run specific hook
+pre-commit run black
+
+# Update hook versions
+pre-commit autoupdate
+
+# Bypass hooks (emergency only)
+git commit --no-verify -m "message"
+```
 
 ## CI/CD Integration
 
