@@ -50,7 +50,7 @@ spec:
             path: terminate
             port: 9007
     - name: agent
-      image: harbor.test/library/seldon-agent:2.9.1
+      image: 192.168.1.100/library/seldon-agent:2.9.1
       command:
       - /bin/agent
       args:
@@ -138,7 +138,7 @@ spec:
           cpu: 250m
           memory: 1Gi
     - name: mlserver
-      image: harbor.test/library/mlserver:1.7.0
+      image: 192.168.1.100/library/mlserver:1.7.0
       env:
       - name: MLSERVER_PARALLEL_WORKERS
         value: "2"

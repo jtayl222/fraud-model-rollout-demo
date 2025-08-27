@@ -1,0 +1,12 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: registry-config
+  namespace: fraud-detection
+data:
+  # Registry configuration - update this for different environments
+  # HARBOR_REGISTRY: "harbor.test"
+  # HARBOR_ENDPOINT: "http://harbor.test" 
+  # For environments where DNS doesn't work, change to:
+  HARBOR_REGISTRY: "192.168.1.100"
+  HARBOR_ENDPOINT: "http://192.168.1.100"
