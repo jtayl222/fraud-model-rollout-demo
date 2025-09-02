@@ -222,24 +222,42 @@ Seldon stores feedback for **online metric comparison**:
 
 ## 🏃 Quickstart
 
+### Prerequisites
+- Kubernetes cluster with Seldon Core v2.9.1+ installed
+- MLflow tracking server configured
+- kubectl access to the cluster
+
+### Deployment Steps
+
+⚠️ **Important:** Due to a bug in Seldon Core v2.9.1, ServerConfig resources must be copied to the application namespace. Follow these steps in order:
+
 ```bash
-# 1. Enrich Kaggle dataset + inject drift
-jupyter notebook notebooks/01_data_enrichment.ipynb
+# 1. Check prerequisites (Seldon Core, MLflow, etc.)
+./scripts/check-prerequisites.sh --namespace fraud-detection
 
-# 2. Train baseline & candidate models
-jupyter notebook notebooks/02_baseline_training.ipynb
-jupyter notebook notebooks/03_candidate_training.ipynb
+# 2. Apply centralized ServerConfig to seldon-system namespace (infrastructure requirement)
+kubectl apply -f k8s/base/server-config-centralized.yaml
 
-# 3. Deploy models in Seldon
-kubectl apply -f seldon/seldon-fraud-abtest.yaml
+# 3. CRITICAL: Apply ServerConfig workaround for Seldon v2.9.1 bug
+./scripts/copy-serverconfig-workaround.sh fraud-detection
 
-# 4. Fast replay transactions & send feedback
-python scripts/replay_transactions.py
-python scripts/send_feedback.py
+# 4. Deploy the runtime (Pattern 3 architecture)
+./scripts/deploy-runtime-pattern3.sh
 
-# 5. View metrics in Grafana
-kubectl port-forward svc/grafana 3000:80 -n monitoring
+# 5. Deploy the fraud detection models
+kubectl apply -k k8s/base/
+
+# 6. Verify deployment health
+./scripts/health-check.sh
+
+# 7. Run integration tests
+./scripts/test-k8s-deployment.sh
 ```
+
+### If Namespace Gets Recreated
+If the namespace is deleted and recreated, you must re-run steps 2-7 above, starting with the centralized ServerConfig application.
+
+See [k8s/SELDON_V2_9_1_BUG_WORKAROUND.md](k8s/SELDON_V2_9_1_BUG_WORKAROUND.md) for details about the bug and workaround.
 
 ---
 

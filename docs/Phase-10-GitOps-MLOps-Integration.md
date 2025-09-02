@@ -135,7 +135,7 @@ spec:
       - "{{inputs.parameters.model-type}}"
       env:
       - name: MLFLOW_TRACKING_URI
-        value: "http://mlflow.test:5000"
+        value: "http://192.168.1.215:5000"
       - name: AWS_ACCESS_KEY_ID
         valueFrom:
           secretKeyRef:

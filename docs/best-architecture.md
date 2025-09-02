@@ -7,9 +7,84 @@ This document compares two Seldon Core v2 deployment patterns for our fraud dete
 ## Pattern 3: Standard Scoped Operator (lc525 Recommended)
 
 ### Architecture
+
+```mermaid
+graph TB
+    %% Namespaces
+    subgraph "seldon-system namespace"
+        SO[seldon-operator<br/>clusterwide=true<br/>watchNamespaces=fraud-detection]
+        SC[ServerConfig: mlserver<br/>MLServer runtime config]
+        OP[Core operator components]
+    end
+
+    subgraph "fraud-detection namespace"
+        %% Runtime Components
+        SS[seldon-scheduler<br/>Model scheduling]
+        SM[seldon-mesh<br/>Envoy proxy]
+        PG[pipeline-gateway<br/>Pipeline routing]
+        MG[model-gateway<br/>Model routing]
+        DE[dataflow-engine<br/>Data processing]
+        
+        %% Application Resources  
+        SR[Server: mlserver<br/>references seldon-system/mlserver]
+        M1[Model: fraud-v1-baseline<br/>TensorFlow model]
+        M2[Model: fraud-v2-candidate<br/>TensorFlow model] 
+        EXP[Experiment: fraud-ab-test<br/>80/20 traffic split]
+        
+        %% Storage
+        PVC1[PVC: fraud-models-pvc<br/>Model artifacts]
+        PVC2[PVC: fraud-raw-data-pvc<br/>Training data]
+    end
+
+    %% External Components
+    subgraph "External Systems"
+        ML[MLflow<br/>192.168.1.215:5000<br/>Model registry]
+        MIN[MinIO<br/>192.168.1.200:9000<br/>S3 storage]
+        MON[Prometheus/Grafana<br/>Monitoring stack]
+    end
+
+    %% Relationships
+    SO --> SS
+    SO --> SM
+    SO --> SR
+    SO --> M1
+    SO --> M2
+    SO --> EXP
+    
+    SC -.-> SR
+    SR --> M1
+    SR --> M2
+    M1 --> PVC1
+    M2 --> PVC1
+    
+    EXP --> M1
+    EXP --> M2
+    
+    M1 -.-> ML
+    M2 -.-> ML
+    PVC1 -.-> MIN
+    
+    SS --> MON
+    SM --> MON
+
+    %% Styling
+    classDef namespace fill:#e1f5fe
+    classDef runtime fill:#f3e5f5
+    classDef model fill:#e8f5e8
+    classDef storage fill:#fff3e0
+    classDef external fill:#fce4ec
+    
+    class SO,OP namespace
+    class SS,SM,PG,MG,DE,SR runtime
+    class M1,M2,EXP model
+    class PVC1,PVC2,SC storage
+    class ML,MIN,MON external
+```
+
+**Text Representation:**
 ```
 seldon-system namespace:
-├── seldon-operator (clusterwide=true, watchNamespaces=[fraud-detection])
+├── seldon-operator (clusterwide=true, watchNamespaces=fraud-detection)
 ├── ServerConfig resources (centralized)
 └── Core operator components
 
@@ -97,6 +172,51 @@ We have invested significant effort in Pattern 4:
 - ✅ Namespace structure created
 - ✅ RBAC and network policies configured
 - ⏳ Deployment pending
+
+### Current Deployment Issue
+
+```mermaid
+graph TB
+    subgraph "Current State (Not Working)"
+        subgraph "fraud-detection namespace"
+            M1[Model: fraud-v1-baseline<br/>❌ READY: False]
+            M2[Model: fraud-v2-candidate<br/>❌ READY: False]
+            MISSING[❌ Missing Runtime Components:<br/>• No seldon-scheduler<br/>• No seldon-mesh<br/>• No mlserver pods]
+        end
+        
+        subgraph "seldon-system namespace"
+            SO[seldon-operator<br/>✅ Running]
+            SC[ServerConfig<br/>❓ Location unclear]
+        end
+        
+        SECRETS[✅ Sealed Secrets<br/>All working now]
+    end
+    
+    subgraph "Expected State (Pattern 3)"
+        subgraph "fraud-detection namespace (target)"
+            M1T[Model: fraud-v1-baseline<br/>✅ READY: True]
+            M2T[Model: fraud-v2-candidate<br/>✅ READY: True]
+            SST[seldon-scheduler<br/>✅ Running]
+            SMT[seldon-mesh<br/>✅ Running]
+            SRT[Server: mlserver<br/>✅ Running]
+        end
+        
+        subgraph "seldon-system namespace (target)"
+            SOT[seldon-operator<br/>✅ Running]
+            SCT[ServerConfig: mlserver<br/>✅ Centralized location]
+        end
+    end
+    
+    style MISSING fill:#ffcdd2
+    style SECRETS fill:#c8e6c9
+    style M1 fill:#ffcdd2
+    style M2 fill:#ffcdd2
+    style M1T fill:#c8e6c9
+    style M2T fill:#c8e6c9
+    style SST fill:#c8e6c9
+    style SMT fill:#c8e6c9
+    style SRT fill:#c8e6c9
+```
 
 ## Recommendation: Switch to Pattern 3
 
