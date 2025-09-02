@@ -14,6 +14,7 @@ resources:
 
   # Configuration
   - model-config.yaml
+  - registry-config.yaml
 
   # Storage
   - fraud-model-pvc.yaml
@@ -23,8 +24,9 @@ resources:
   - seldon-controller-rbac.yaml
 
   # Seldon Core Configuration
-  # Pattern 3: ServerConfig in seldon-system namespace
-  - server-config-centralized.yaml
+  # Pattern 3: ServerConfig must be applied separately to seldon-system namespace
+  # DO NOT include server-config-centralized.yaml here as kustomize will override namespace
+  # Apply it separately: kubectl apply -f server-config-centralized.yaml
   # Pattern 3: Runtime deployed via Helm (see runtime-pattern3.yaml for instructions)
   # - seldon-runtime.yaml  # Not used in Pattern 3
   # - server-config-scoped.yaml  # Not used in Pattern 3

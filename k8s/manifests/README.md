@@ -1,7 +1,7 @@
 # ML Secrets Package: fraud-detection
 
-**Generated:** Sun Aug 24 05:48:59 PM EDT 2025  
-**Requestor:** fraud-detection@company.com  
+**Generated:** Mon Sep  1 04:49:08 PM EDT 2025  
+**Requestor:** team@company.com  
 **Environments:** dev,production
 
 ## Quick Start
@@ -95,7 +95,7 @@ your-app-repo/
 
 ## Support
 
-- **Requestor:** fraud-detection@company.com
+- **Requestor:** team@company.com
 - **Infrastructure Team:** infrastructure-team@company.com
 - **Platform Docs:** [Internal ML Platform Wiki]
 
