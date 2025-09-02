@@ -29,24 +29,28 @@ echo -e "${BLUE}Fraud Detection K8s Deployment Test${NC}"
 echo -e "${BLUE}============================================${NC}"
 echo ""
 
-# Check kubectl connection
-echo "1. Checking Kubernetes Connection"
-echo "---------------------------------"
-if kubectl cluster-info &>/dev/null; then
-    echo -e "${GREEN}✓ Connected to Kubernetes cluster${NC}"
-    kubectl cluster-info | head -n 1
-else
-    echo -e "${RED}✗ Cannot connect to Kubernetes cluster${NC}"
-    echo "Please ensure KUBECONFIG is set correctly"
+# Run prerequisites check
+echo "1. Checking Infrastructure Prerequisites"
+echo "----------------------------------------"
+
+# Get script directory
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+# Set namespace
+NAMESPACE=${NAMESPACE:-"fraud-detection"}
+echo "Using namespace: $NAMESPACE"
+echo ""
+
+# Run prerequisites check script
+if ! "$SCRIPT_DIR/check-prerequisites.sh" --namespace "$NAMESPACE"; then
+    echo ""
+    echo -e "${RED}Prerequisites check failed. Cannot proceed with deployment.${NC}"
     exit 1
 fi
 
 echo ""
-echo "2. Checking Namespaces"
-echo "----------------------"
-NAMESPACE=${NAMESPACE:-"fraud-detection"}
-echo "Using namespace: $NAMESPACE"
-
+echo "2. Checking Application Namespace"
+echo "---------------------------------"
 if kubectl get namespace $NAMESPACE &>/dev/null; then
     echo -e "${GREEN}✓ Namespace '$NAMESPACE' exists${NC}"
 else
@@ -55,25 +59,7 @@ else
 fi
 
 echo ""
-echo "3. Checking Seldon Core Installation"
-echo "------------------------------------"
-if kubectl get crd models.mlops.seldon.io &>/dev/null; then
-    echo -e "${GREEN}✓ Seldon Core v2 CRDs found${NC}"
-    
-    # Check Seldon controller
-    if kubectl get pods -n seldon-system 2>/dev/null | grep -q Running; then
-        echo -e "${GREEN}✓ Seldon controller is running${NC}"
-    else
-        echo -e "${YELLOW}⚠ Seldon controller not found or not running${NC}"
-    fi
-else
-    echo -e "${RED}✗ Seldon Core CRDs not found${NC}"
-    echo "Please install Seldon Core v2 first"
-    exit 1
-fi
-
-echo ""
-echo "4. Deploying Fraud Detection Models"
+echo "3. Deploying Fraud Detection Models"
 echo "-----------------------------------"
 
 # Check if models already exist
@@ -99,32 +85,11 @@ if [ -f "k8s/base/kustomization.yaml" ]; then
         fi
     fi
     
-    # Pattern 3: Apply ServerConfig to seldon-system first (centralized)
-    if [ -f "k8s/base/server-config-centralized.yaml" ]; then
-        echo "Checking centralized ServerConfig in seldon-system..."
-        
-        # Check if ServerConfig already exists
-        if kubectl get serverconfig mlserver-config -n seldon-system &>/dev/null; then
-            echo -e "${GREEN}✓ ServerConfig 'mlserver-config' already exists in seldon-system${NC}"
-            
-            # Check if it needs updating by comparing with file
-            echo "Verifying ServerConfig is up to date..."
-            if [ "$FORCE_DEPLOY" = true ] || ! kubectl diff -f k8s/base/server-config-centralized.yaml &>/dev/null; then
-                if [ "$FORCE_DEPLOY" = true ]; then
-                    echo "Force mode: Updating ServerConfig..."
-                else
-                    echo "Updating ServerConfig..."
-                fi
-                kubectl apply -f k8s/base/server-config-centralized.yaml
-                echo -e "${GREEN}✓ ServerConfig updated${NC}"
-            else
-                echo -e "${GREEN}✓ ServerConfig is up to date${NC}"
-            fi
-        else
-            echo "Applying new centralized ServerConfig to seldon-system..."
-            kubectl apply -f k8s/base/server-config-centralized.yaml
-            echo -e "${GREEN}✓ ServerConfig deployed to seldon-system${NC}"
-        fi
+    # Clean up any ServerConfig in fraud-detection (from previous incorrect deployments)
+    if kubectl get serverconfig mlserver-config -n $NAMESPACE &>/dev/null; then
+        echo -e "${YELLOW}⚠ Found ServerConfig in $NAMESPACE, removing (Pattern 3 requires it in seldon-system only)${NC}"
+        kubectl delete serverconfig mlserver-config -n $NAMESPACE
+        echo "ServerConfig should only exist in seldon-system (managed by infrastructure team)"
     fi
     
     # Apply the main kustomization (idempotent)
@@ -157,6 +122,67 @@ else
 fi
 
 echo ""
+echo "4. Checking Runtime Components"
+echo "------------------------------"
+
+# Check which pattern is being used
+echo "Checking Seldon deployment pattern..."
+SCHEDULER_IN_SYSTEM=$(kubectl get pods -n seldon-system -l "app.kubernetes.io/name=seldon-scheduler" --no-headers 2>/dev/null | wc -l)
+SCHEDULER_IN_NS=$(kubectl get pods -n $NAMESPACE -l "app.kubernetes.io/name=seldon-scheduler" --no-headers 2>/dev/null | wc -l)
+
+# Check for runtime components in application namespace (Pattern 3)
+if [ "$SCHEDULER_IN_NS" -gt 0 ]; then
+    ENVOY_IN_NS=$(kubectl get pods -n $NAMESPACE -l "app.kubernetes.io/name=seldon-envoy" --no-headers 2>/dev/null | wc -l)
+    MODELGW_IN_NS=$(kubectl get pods -n $NAMESPACE -l "app.kubernetes.io/name=seldon-modelgateway" --no-headers 2>/dev/null | wc -l)
+    
+    echo -e "${GREEN}✓ Found runtime components in $NAMESPACE (Pattern 3 detected)${NC}"
+    echo "Runtime components in $NAMESPACE:"
+    kubectl get pods -n $NAMESPACE -l "app.kubernetes.io/name in (seldon-scheduler,seldon-envoy,seldon-modelgateway,seldon-pipelinegateway)" --no-headers 2>/dev/null | head -5
+    
+    if [ "$SCHEDULER_IN_SYSTEM" -gt 0 ]; then
+        echo -e "${YELLOW}ℹ Infrastructure runtime also exists in seldon-system (normal for this setup)${NC}"
+    fi
+elif [ "$SCHEDULER_IN_SYSTEM" -gt 0 ]; then
+    echo -e "${YELLOW}⚠ Found runtime components only in seldon-system (Pattern 1/4 detected)${NC}"
+    kubectl get pods -n seldon-system -l "app.kubernetes.io/name in (seldon-scheduler,seldon-envoy)" --no-headers 2>/dev/null | head -5
+else
+    echo -e "${YELLOW}⚠ No Seldon runtime components found${NC}"
+    echo ""
+    echo "Runtime components are required for Seldon Core v2 to work."
+    echo "Checking if they need to be deployed..."
+    
+    # Check if the operator expects Pattern 3 (runtime in app namespace)
+    OPERATOR_CONFIG=$(kubectl get deployment -n seldon-system seldon-controller-manager -o jsonpath='{.spec.template.spec.containers[0].env[?(@.name=="CONTROLLER_CLUSTERWIDE")].value}' 2>/dev/null)
+    WATCH_NS=$(kubectl get deployment -n seldon-system seldon-controller-manager -o jsonpath='{.spec.template.spec.containers[0].env[?(@.name=="CONTROLLER_NAMESPACE")].value}' 2>/dev/null)
+    
+    if [ "$OPERATOR_CONFIG" = "true" ] || [ -n "$WATCH_NS" ]; then
+        echo "Operator is configured for Pattern 3 (runtime per namespace)"
+        echo ""
+        echo -e "${RED}✗ Runtime components MUST be deployed to $NAMESPACE${NC}"
+        echo ""
+        echo "To deploy runtime components, run:"
+        echo ""
+        echo "  # Using Ansible (recommended):"
+        echo "  ansible-playbook -i inventory/production/hosts infrastructure/cluster/site.yml --tags seldon"
+        echo ""
+        echo "  # Or using Helm directly:"
+        echo "  helm repo add seldon-charts https://seldonio.github.io/seldon-core-v2-charts"
+        echo "  helm install seldon-core-v2-runtime seldon-charts/seldon-core-v2-runtime \\"
+        echo "    --version 2.9.1 \\"
+        echo "    --namespace $NAMESPACE \\"
+        echo "    --create-namespace"
+        echo ""
+        echo -e "${YELLOW}Cannot proceed without runtime components.${NC}"
+        # Don't exit, let the test continue to show what's missing
+    else
+        echo "Operator appears to be using Pattern 1/4 (centralized runtime)"
+        echo "Runtime components should be in seldon-system namespace."
+        echo ""
+        echo -e "${YELLOW}⚠ This may be a configuration issue. Check the operator deployment.${NC}"
+    fi
+fi
+
+echo ""
 echo "5. Checking Server Status"
 echo "-------------------------"
 
@@ -173,9 +199,48 @@ else
     
     # Check if Server has issues
     SERVER_READY=$(kubectl get server mlserver -n $NAMESPACE -o jsonpath='{.status.conditions[?(@.type=="Ready")].status}' 2>/dev/null)
+    SERVER_REASON=$(kubectl get server mlserver -n $NAMESPACE -o jsonpath='{.status.conditions[?(@.type=="Ready")].reason}' 2>/dev/null)
+    
     if [ "$SERVER_READY" != "True" ]; then
-        echo -e "${YELLOW}⚠ Server not ready, checking details...${NC}"
-        kubectl describe server mlserver -n $NAMESPACE | tail -20
+        echo -e "${YELLOW}⚠ Server not ready${NC}"
+        
+        # Check specific issue
+        if echo "$SERVER_REASON" | grep -q "ServerConfig.*not found"; then
+            echo -e "${RED}✗ ServerConfig reference issue detected${NC}"
+            echo ""
+            # Check where the ServerConfig actually is
+            echo "Checking ServerConfig locations:"
+            echo -n "  In seldon-system: "
+            if kubectl get serverconfig mlserver-config -n seldon-system &>/dev/null; then
+                echo -e "${GREEN}✓ Found${NC}"
+                echo ""
+                echo "The Server is configured for Pattern 3 (ServerConfig in seldon-system)."
+                echo "This is correct. The issue may be:"
+                echo "  1. The operator cannot access the ServerConfig across namespaces"
+                echo "  2. RBAC permissions may need updating"
+                echo "  3. The operator may need to be restarted"
+            else
+                echo -e "${RED}✗ Not found${NC}"
+            fi
+            
+            echo -n "  In $NAMESPACE: "
+            if kubectl get serverconfig mlserver-config -n $NAMESPACE &>/dev/null; then
+                echo -e "${GREEN}✓ Found${NC}"
+                echo ""
+                echo "ServerConfig exists in application namespace (Pattern 4)."
+                echo "But Server may be looking in seldon-system."
+            else
+                echo -e "${RED}✗ Not found${NC}"
+            fi
+        else
+            echo "Reason: $SERVER_REASON"
+        fi
+        
+        echo ""
+        echo "Server details:"
+        kubectl describe server mlserver -n $NAMESPACE | grep -A10 "Status:"
+    else
+        echo -e "${GREEN}✓ Server is ready${NC}"
     fi
 fi
 
@@ -231,20 +296,52 @@ if [ "$MODEL_READY" = false ]; then
     if [ -n "$FRAUD_MODELS" ]; then
         for model in $FRAUD_MODELS; do
             MODEL_NAME=$(echo $model | cut -d'/' -f2)
+            echo ""
             echo "Model: $MODEL_NAME"
-            kubectl describe model $MODEL_NAME -n $NAMESPACE | grep -A5 -B5 -E "(Status:|Conditions:|Message:|Reason:)"
-            echo "---"
+            echo "----------------"
+            
+            # Get the model's server reference
+            MODEL_SERVER=$(kubectl get model $MODEL_NAME -n $NAMESPACE -o jsonpath='{.spec.server}' 2>/dev/null)
+            echo "  Server reference: $MODEL_SERVER"
+            
+            # Get the model's status
+            kubectl get model $MODEL_NAME -n $NAMESPACE -o jsonpath='{.status}' 2>/dev/null | python3 -m json.tool 2>/dev/null || \
+                kubectl describe model $MODEL_NAME -n $NAMESPACE | grep -A10 "Status:"
+            echo ""
         done
     fi
     
-    # Check Server pods
-    echo "Server pods:"
-    kubectl get pods -n $NAMESPACE | grep -E "(mlserver|server)" || echo "No server pods found"
+    # Check if this is a runtime component issue
+    echo "Checking runtime components:"
+    echo "-----------------------------"
+    SCHEDULER_COUNT=$(kubectl get pods -n $NAMESPACE -l "app.kubernetes.io/name=seldon-scheduler" --no-headers 2>/dev/null | wc -l)
+    ENVOY_COUNT=$(kubectl get pods -n $NAMESPACE -l "app.kubernetes.io/name=seldon-envoy" --no-headers 2>/dev/null | wc -l)
+    MODELGW_COUNT=$(kubectl get pods -n $NAMESPACE -l "app.kubernetes.io/name=seldon-modelgateway" --no-headers 2>/dev/null | wc -l)
     
-    # Check scheduler logs for errors
-    echo ""
-    echo "Recent scheduler logs:"
-    kubectl logs -n $NAMESPACE --tail=10 -l app.kubernetes.io/name=seldon-scheduler 2>/dev/null || echo "No scheduler logs available"
+    echo "  Scheduler pods: $SCHEDULER_COUNT"
+    echo "  Envoy (mesh) pods: $ENVOY_COUNT"  
+    echo "  Model gateway pods: $MODELGW_COUNT"
+    
+    if [ "$SCHEDULER_COUNT" -eq 0 ] || [ "$ENVOY_COUNT" -eq 0 ] || [ "$MODELGW_COUNT" -eq 0 ]; then
+        echo -e "${RED}✗ Missing critical runtime components${NC}"
+        echo ""
+        echo "Models cannot run without complete runtime components."
+        echo "Deploy missing components: ./scripts/deploy-runtime-pattern3.sh"
+    else
+        echo -e "${GREEN}✓ All runtime components present${NC}"
+        
+        # Check Server pods
+        echo ""
+        echo "Server pods:"
+        kubectl get pods -n $NAMESPACE | grep -E "(mlserver|server)" || echo "No server pods found"
+        
+        # Check scheduler logs for errors
+        echo ""
+        echo "Recent scheduler logs:"
+        kubectl logs -n $NAMESPACE --tail=10 -l app.kubernetes.io/name=seldon-scheduler 2>/dev/null || \
+            kubectl logs -n seldon-system --tail=10 -l app.kubernetes.io/name=seldon-scheduler 2>/dev/null || \
+            echo "No scheduler logs available"
+    fi
 fi
 
 echo ""
@@ -325,8 +422,10 @@ echo "Checking for errors in model pods..."
 for pod in $(kubectl get pods -n $NAMESPACE -o name | grep -E "(fraud|mlserver|seldon)"); do
     POD_NAME=$(echo $pod | cut -d'/' -f2)
     echo -n "  $POD_NAME: "
-    ERROR_COUNT=$(kubectl logs -n $NAMESPACE $POD_NAME --tail=50 2>/dev/null | grep -ciE "(error|exception|failed)" || echo "0")
-    if [ "$ERROR_COUNT" -gt 0 ]; then
+    # Get error count, ensuring it's a single number
+    ERROR_COUNT=$(kubectl logs -n $NAMESPACE $POD_NAME --tail=50 2>/dev/null | grep -ciE "(error|exception|failed)" 2>/dev/null || echo "0")
+    ERROR_COUNT=$(echo "$ERROR_COUNT" | head -1 | tr -d '\n')
+    if [ "$ERROR_COUNT" -gt 0 ] 2>/dev/null; then
         echo -e "${YELLOW}$ERROR_COUNT errors found${NC}"
     else
         echo -e "${GREEN}✓ No errors${NC}"
@@ -343,20 +442,64 @@ echo "============================================"
 echo "Test Summary"
 echo "============================================"
 
-# Collect status
-MODELS_READY=$(kubectl get models -n $NAMESPACE 2>/dev/null | grep -c "Ready" || echo "0")
-PODS_RUNNING=$(kubectl get pods -n $NAMESPACE 2>/dev/null | grep -E "(fraud|mlserver)" | grep -c "Running" || echo "0")
-SERVICES=$(kubectl get svc -n $NAMESPACE 2>/dev/null | grep -cE "(fraud|mlserver)" || echo "0")
+# Collect detailed status
+MODELS_READY=$(kubectl get models -n $NAMESPACE 2>/dev/null | grep fraud | grep -c "True" | head -1 || echo "0")
+MODELS_TOTAL=$(kubectl get models -n $NAMESPACE 2>/dev/null | grep -c fraud | head -1 || echo "0")
+SERVER_READY=$(kubectl get server mlserver -n $NAMESPACE -o jsonpath='{.status.conditions[?(@.type=="Ready")].status}' 2>/dev/null)
+SCHEDULER_PODS=$(kubectl get pods -n $NAMESPACE -l "app.kubernetes.io/name=seldon-scheduler" --no-headers 2>/dev/null | wc -l)
+ENVOY_PODS=$(kubectl get pods -n $NAMESPACE -l "app.kubernetes.io/name=seldon-envoy" --no-headers 2>/dev/null | wc -l)
+RUNTIME_PODS_TOTAL=$((SCHEDULER_PODS + ENVOY_PODS))
+SERVERCONFIG_IN_SYSTEM=$(kubectl get serverconfig mlserver-config -n seldon-system &>/dev/null && echo "YES" || echo "NO")
+SERVERCONFIG_IN_NS=$(kubectl get serverconfig mlserver-config -n $NAMESPACE &>/dev/null && echo "YES" || echo "NO")
 
-echo -e "Models Ready:    ${GREEN}$MODELS_READY${NC}"
-echo -e "Pods Running:    ${GREEN}$PODS_RUNNING${NC}"
-echo -e "Services:        ${GREEN}$SERVICES${NC}"
+echo "Component Status:"
+echo "-----------------"
+echo -e "Models Ready:             $MODELS_READY / $MODELS_TOTAL"
+echo -e "Server Ready:             $([ "$SERVER_READY" = "True" ] && echo -e "${GREEN}YES${NC}" || echo -e "${RED}NO${NC}")"
+echo -e "Runtime Components:       $([ $RUNTIME_PODS_TOTAL -gt 1 ] && echo -e "${GREEN}$RUNTIME_PODS_TOTAL pods${NC}" || echo -e "${RED}$RUNTIME_PODS_TOTAL pods${NC}")"
+echo -e "  Scheduler:              $([ $SCHEDULER_PODS -gt 0 ] && echo -e "${GREEN}$SCHEDULER_PODS${NC}" || echo -e "${RED}0${NC}")"
+echo -e "  Envoy (mesh):           $([ $ENVOY_PODS -gt 0 ] && echo -e "${GREEN}$ENVOY_PODS${NC}" || echo -e "${RED}0${NC}")"
+echo -e "ServerConfig (system):    $([ "$SERVERCONFIG_IN_SYSTEM" = "YES" ] && echo -e "${GREEN}YES${NC}" || echo -e "${RED}NO${NC}")"
+echo -e "ServerConfig (namespace): $([ "$SERVERCONFIG_IN_NS" = "YES" ] && echo -e "${GREEN}YES${NC}" || echo -e "${YELLOW}NO${NC}")"
 
-if [ $MODELS_READY -gt 0 ] && [ $PODS_RUNNING -gt 0 ]; then
-    echo -e "\n${GREEN}✅ Deployment test PASSED!${NC}"
+echo ""
+# Ensure variables have numeric values
+MODELS_READY=${MODELS_READY:-0}
+SCHEDULER_PODS=${SCHEDULER_PODS:-0}
+MESH_PODS=${MESH_PODS:-0}
+
+if [ "$MODELS_READY" -gt 0 ] && [ "$SERVER_READY" = "True" ]; then
+    echo -e "${GREEN}✅ Deployment test PASSED!${NC}"
     echo "The fraud detection models are deployed and running in Kubernetes"
+elif [ "$RUNTIME_PODS_TOTAL" -lt 2 ]; then
+    echo -e "${RED}✗ Deployment test FAILED${NC}"
+    echo ""
+    echo "Missing runtime components in $NAMESPACE namespace."
+    echo "This is required for Pattern 3 architecture."
+    echo ""
+    echo "Action required:"
+    echo "1. Deploy runtime components to $NAMESPACE using Helm:"
+    echo "   helm repo add seldon-charts https://seldonio.github.io/seldon-core-v2-charts"
+    echo "   helm install seldon-runtime-fraud seldon-charts/seldon-core-v2-runtime \\"
+    echo "     --version 2.9.1 --namespace $NAMESPACE --wait"
+    echo ""
+    echo "2. Or verify if Pattern 1/4 is intended (runtime in seldon-system)"
+elif [ "$SERVER_READY" != "True" ] && [ "$SERVERCONFIG_IN_SYSTEM" = "YES" ]; then
+    echo -e "${YELLOW}⚠ Deployment test INCOMPLETE${NC}"
+    echo ""
+    echo "ServerConfig exists in seldon-system but Server cannot access it."
+    echo "This is an infrastructure configuration issue."
+    echo ""
+    echo "Contact your infrastructure team to:"
+    echo "1. Verify the Seldon operator can access cross-namespace resources"
+    echo "2. Check RBAC permissions allow ServerConfig access from fraud-detection"
+    echo "3. Ensure the operator is properly configured for Pattern 3"
+    echo ""
+    echo "Infrastructure team may need to:"
+    echo "- Restart the operator: kubectl rollout restart deployment -n seldon-system seldon-v2-controller-manager"
+    echo "- Update RBAC policies for cross-namespace access"
 else
-    echo -e "\n${YELLOW}⚠ Deployment test INCOMPLETE${NC}"
+    echo -e "${YELLOW}⚠ Deployment test INCOMPLETE${NC}"
     echo "Some components may not be fully deployed. Check the logs above for details."
 fi
 
