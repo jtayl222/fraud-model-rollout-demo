@@ -22,7 +22,7 @@ from sklearn.preprocessing import StandardScaler
 
 # Configuration
 # Use seldon-mesh LoadBalancer directly instead of Istio gateway
-SELDON_ENDPOINT = "http://192.168.1.212"  # seldon-mesh LoadBalancer IP
+SELDON_ENDPOINT = "http://192.168.1.210"  # seldon-mesh LoadBalancer IP
 HOST_HEADER = "fraud-detection.local"
 
 # Model thresholds (from threshold tuning analysis)
@@ -117,15 +117,17 @@ class FraudDetectionService:
             # Preprocess transaction
             scaled_features = self.preprocess_transaction(transaction_data)
 
-            # Create V2 inference payload
+            # Create V2 inference payload with correct format for MLServer
             payload = {
                 "parameters": {"content_type": "np"},
                 "inputs": [
                     {
-                        "name": "fraud_features",
+                        "name": "input_0",
                         "shape": [1, 30],
                         "datatype": "FP32",
-                        "data": scaled_features.tolist(),
+                        "data": [
+                            scaled_features.tolist()
+                        ],  # Wrap in array for correct shape
                     }
                 ],
             }
