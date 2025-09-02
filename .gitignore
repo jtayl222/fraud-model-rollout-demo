@@ -229,3 +229,11 @@ k8s/overlays/
 # Ignore all Kubernetes manifests except example files for documentation purposes.
 k8s/manifests/**/*.yaml
 !k8s/manifests/**/example-*.yaml
+
+# Working documentation directory
+# Temporary documentation and troubleshooting notes that shouldn't be committed
+working_docs/
+
+# Claude Code project instructions
+# Contains AI assistant context and instructions - typically excluded from version control
+CLAUDE.md
