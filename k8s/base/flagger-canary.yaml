@@ -1,0 +1,247 @@
+apiVersion: flagger.app/v1beta1
+kind: Canary
+metadata:
+  name: fraud-v2-candidate-canary
+  namespace: fraud-detection
+  labels:
+    app: fraud-detection
+    component: model-canary
+spec:
+  # Target deployment to canary
+  targetRef:
+    apiVersion: mlserver.seldon.io/v1beta1
+    kind: Server
+    name: fraud-v2-candidate-server
+  
+  # HPA reference (if using autoscaling)
+  autoscalerRef:
+    apiVersion: autoscaling/v2
+    kind: HorizontalPodAutoscaler
+    name: fraud-v2-candidate-server-hpa
+  
+  # Service mesh configuration
+  service:
+    name: fraud-v2-candidate-service
+    port: 8080
+    targetPort: 8080
+    portDiscovery: true
+    match:
+    - headers:
+        x-model-version:
+          exact: "v2"
+    retries:
+      attempts: 3
+      perTryTimeout: 10s
+    
+  # Ingress configuration  
+  ingressRef:
+    apiVersion: networking.k8s.io/v1
+    kind: Ingress
+    name: fraud-detection-ingress
+
+  # Progressive delivery configuration
+  progressDeadlineSeconds: 3600  # 1 hour timeout
+  
+  analysis:
+    # Canary analysis interval
+    interval: 2m
+    
+    # Number of checks to perform
+    iterations: 15  # 30 minutes total (2m * 15)
+    
+    # Maximum traffic percentage for canary
+    maxWeight: 50
+    
+    # Traffic increment step
+    stepWeight: 5  # Increase by 5% each interval
+    
+    # Success threshold (number of successful checks)
+    threshold: 5
+    
+    # Metrics to monitor
+    metrics:
+    # Model-specific metrics
+    - name: model-precision
+      thresholdRange:
+        min: 0.85  # Minimum acceptable precision
+      interval: 1m
+      templateRef:
+        name: model-precision-template
+        namespace: fraud-detection
+    
+    - name: model-recall
+      thresholdRange:
+        min: 0.90  # Minimum acceptable recall
+      interval: 1m  
+      templateRef:
+        name: model-recall-template
+        namespace: fraud-detection
+    
+    - name: model-f1-score
+      thresholdRange:
+        min: 0.87  # Minimum F1 score
+      interval: 1m
+      templateRef:
+        name: model-f1-template
+        namespace: fraud-detection
+    
+    # Infrastructure metrics
+    - name: request-success-rate
+      thresholdRange:
+        min: 99.5  # 99.5% success rate
+      interval: 30s
+      templateRef:
+        name: success-rate
+        namespace: flagger-system
+    
+    - name: request-duration
+      thresholdRange:
+        max: 500  # 500ms max response time
+      interval: 30s
+      templateRef:
+        name: latency
+        namespace: flagger-system
+    
+    # Business metrics
+    - name: fraud-detection-rate
+      thresholdRange:
+        min: 1.0  # At least current fraud detection rate
+      interval: 5m
+      templateRef:
+        name: fraud-detection-rate-template
+        namespace: fraud-detection
+    
+    # Webhooks for custom validation
+    webhooks:
+    - name: pre-rollout-validation
+      type: pre-rollout
+      url: http://fraud-validation-service.fraud-detection.svc.cluster.local/validate
+      timeout: 30s
+      metadata:
+        cmd: "python /app/validate_model.py --model=v2"
+    
+    - name: rollout-gate
+      type: rollout
+      url: http://fraud-validation-service.fraud-detection.svc.cluster.local/gate
+      timeout: 15s
+      metadata:
+        threshold: "0.95"
+        
+    - name: post-rollout-test
+      type: post-rollout  
+      url: http://fraud-validation-service.fraud-detection.svc.cluster.local/test
+      timeout: 60s
+      metadata:
+        test-suite: "comprehensive"
+
+  # Alerts during canary analysis
+  alerts:
+  - name: "Canary analysis started"
+    severity: info
+    providerRef:
+      name: slack-webhook
+      namespace: fraud-detection
+  
+  - name: "Canary analysis failed" 
+    severity: error
+    providerRef:
+      name: slack-webhook
+      namespace: fraud-detection
+
+---
+# MetricTemplate for model precision
+apiVersion: flagger.app/v1beta1
+kind: MetricTemplate
+metadata:
+  name: model-precision-template
+  namespace: fraud-detection
+spec:
+  provider:
+    type: prometheus
+    address: http://prometheus.monitoring.svc.cluster.local:9090
+  query: |
+    (
+      sum(fraud_model_true_positives{model_name="{{ canary }}",namespace="{{ namespace }}"}) /
+      (sum(fraud_model_true_positives{model_name="{{ canary }}",namespace="{{ namespace }}"}) +
+       sum(fraud_model_false_positives{model_name="{{ canary }}",namespace="{{ namespace }}"}))
+    ) or on() vector(0)
+
+---
+# MetricTemplate for model recall  
+apiVersion: flagger.app/v1beta1
+kind: MetricTemplate
+metadata:
+  name: model-recall-template
+  namespace: fraud-detection
+spec:
+  provider:
+    type: prometheus
+    address: http://prometheus.monitoring.svc.cluster.local:9090
+  query: |
+    (
+      sum(fraud_model_true_positives{model_name="{{ canary }}",namespace="{{ namespace }}"}) /
+      (sum(fraud_model_true_positives{model_name="{{ canary }}",namespace="{{ namespace }}"}) +
+       sum(fraud_model_false_negatives{model_name="{{ canary }}",namespace="{{ namespace }}"}))
+    ) or on() vector(0)
+
+---
+# MetricTemplate for F1 score
+apiVersion: flagger.app/v1beta1
+kind: MetricTemplate
+metadata:
+  name: model-f1-template
+  namespace: fraud-detection
+spec:
+  provider:
+    type: prometheus
+    address: http://prometheus.monitoring.svc.cluster.local:9090
+  query: |
+    (
+      2 * (
+        (sum(fraud_model_true_positives{model_name="{{ canary }}",namespace="{{ namespace }}"}) /
+         (sum(fraud_model_true_positives{model_name="{{ canary }}",namespace="{{ namespace }}"}) +
+          sum(fraud_model_false_positives{model_name="{{ canary }}",namespace="{{ namespace }}"}))) *
+        (sum(fraud_model_true_positives{model_name="{{ canary }}",namespace="{{ namespace }}"}) /
+         (sum(fraud_model_true_positives{model_name="{{ canary }}",namespace="{{ namespace }}"}) +
+          sum(fraud_model_false_negatives{model_name="{{ canary }}",namespace="{{ namespace }}"})))
+      ) / (
+        (sum(fraud_model_true_positives{model_name="{{ canary }}",namespace="{{ namespace }}"}) /
+         (sum(fraud_model_true_positives{model_name="{{ canary }}",namespace="{{ namespace }}"}) +
+          sum(fraud_model_false_positives{model_name="{{ canary }}",namespace="{{ namespace }}"}))) +
+        (sum(fraud_model_true_positives{model_name="{{ canary }}",namespace="{{ namespace }}"}) /
+         (sum(fraud_model_true_positives{model_name="{{ canary }}",namespace="{{ namespace }}"}) +
+          sum(fraud_model_false_negatives{model_name="{{ canary }}",namespace="{{ namespace }}"})))
+      )
+    ) or on() vector(0)
+
+---
+# MetricTemplate for fraud detection rate
+apiVersion: flagger.app/v1beta1
+kind: MetricTemplate
+metadata:
+  name: fraud-detection-rate-template
+  namespace: fraud-detection
+spec:
+  provider:
+    type: prometheus
+    address: http://prometheus.monitoring.svc.cluster.local:9090
+  query: |
+    (
+      rate(fraud_predictions_total{model_name="{{ canary }}",prediction="fraud",namespace="{{ namespace }}"}[5m]) /
+      rate(fraud_predictions_total{model_name="{{ canary }}",namespace="{{ namespace }}"}[5m])
+    ) or on() vector(0)
+
+---
+# AlertProvider for Slack notifications
+apiVersion: flagger.app/v1beta1
+kind: AlertProvider
+metadata:
+  name: slack-webhook
+  namespace: fraud-detection
+spec:
+  type: slack
+  channel: "#ml-alerts"
+  username: flagger
+  address: https://hooks.slack.com/services/YOUR/SLACK/WEBHOOK
+  secretRef:
+    name: slack-webhook-secret

@@ -1,0 +1,42 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+# Reference the base configuration
+resources:
+- ../../base
+
+# Staging-specific configurations
+namePrefix: staging-
+namespace: fraud-detection-staging
+
+# Image transformations for staging registry
+images:
+- name: harbor.test/library/seldon-agent
+  newName: 192.168.1.210/library/seldon-agent
+  newTag: staging
+- name: harbor.test/library/mlserver
+  newName: 192.168.1.210/library/mlserver
+  newTag: staging
+- name: harbor.test/library/fraud-detector
+  newName: 192.168.1.210/library/fraud-detector
+  newTag: staging
+
+# Staging-specific patches (using modern patches syntax)
+patches:
+- path: staging-experiment-patch.yaml
+  target:
+    kind: Experiment
+    name: fraud-ab-test-experiment
+
+# Staging uses smaller resource limits (managed via Server spec.replicas)
+patches:
+- target:
+    kind: Server
+    name: mlserver
+  patch: |-
+    - op: replace
+      path: /spec/replicas
+      value: 1
+
+# Note: ConfigMap values would be updated by CI/CD pipeline
+# or ArgoCD with environment-specific S3 URIs

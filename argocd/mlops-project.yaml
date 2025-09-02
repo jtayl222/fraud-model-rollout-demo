@@ -1,0 +1,106 @@
+apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  name: mlops-fraud-detection
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  description: MLOps project for fraud detection models and pipelines
+  
+  # Source repositories
+  sourceRepos:
+  - 'https://github.com/jtayl222/fraud-model-rollout-demo'
+  - 'https://github.com/jtayl222/*'  # Allow other repos in same org
+  - 'https://charts.helm.sh/stable'   # Helm charts
+  
+  # Destination clusters and namespaces
+  destinations:
+  - namespace: 'fraud-detection'
+    server: 'https://kubernetes.default.svc'
+  - namespace: 'fraud-detection-staging'
+    server: 'https://kubernetes.default.svc'
+  - namespace: 'seldon-system'
+    server: 'https://kubernetes.default.svc'
+  - namespace: 'mlflow'
+    server: 'https://kubernetes.default.svc'
+  - namespace: 'monitoring'
+    server: 'https://kubernetes.default.svc'
+  - namespace: 'argowf'
+    server: 'https://kubernetes.default.svc'
+  
+  # Cluster-scoped resources allowed
+  clusterResourceWhitelist:
+  - group: 'mlserver.seldon.io'
+    kind: '*'
+  - group: 'machinelearning.seldon.io'
+    kind: '*'
+  - group: 'argoproj.io'
+    kind: 'Workflow'
+  - group: 'argoproj.io'
+    kind: 'WorkflowTemplate'
+  - group: 'flagger.app'
+    kind: 'Canary'
+  - group: 'networking.k8s.io'
+    kind: 'NetworkPolicy'
+  - group: 'rbac.authorization.k8s.io'
+    kind: 'ClusterRole'
+  - group: 'rbac.authorization.k8s.io'
+    kind: 'ClusterRoleBinding'
+  
+  # Namespace-scoped resources allowed
+  namespaceResourceWhitelist:
+  - group: '*'
+    kind: '*'
+  
+  # RBAC roles for the project
+  roles:
+  - name: ml-engineer
+    description: ML engineers can manage models and pipelines
+    policies:
+    - p, proj:mlops-fraud-detection:ml-engineer, applications, *, mlops-fraud-detection/*, allow
+    - p, proj:mlops-fraud-detection:ml-engineer, applications, sync, mlops-fraud-detection/*, allow
+    - p, proj:mlops-fraud-detection:ml-engineer, applications, override, mlops-fraud-detection/*, allow
+    - p, proj:mlops-fraud-detection:ml-engineer, applications, action/*, mlops-fraud-detection/*, allow
+    - p, proj:mlops-fraud-detection:ml-engineer, logs, get, mlops-fraud-detection/*, allow
+    - p, proj:mlops-fraud-detection:ml-engineer, exec, create, mlops-fraud-detection/*, allow
+    groups:
+    - mlops:ml-engineers
+    
+  - name: ml-reviewer
+    description: Reviewers can view and approve deployments
+    policies:
+    - p, proj:mlops-fraud-detection:ml-reviewer, applications, get, mlops-fraud-detection/*, allow
+    - p, proj:mlops-fraud-detection:ml-reviewer, applications, sync, mlops-fraud-detection/*, allow
+    - p, proj:mlops-fraud-detection:ml-reviewer, logs, get, mlops-fraud-detection/*, allow
+    groups:
+    - mlops:reviewers
+    
+  - name: readonly
+    description: Read-only access for monitoring
+    policies:
+    - p, proj:mlops-fraud-detection:readonly, applications, get, mlops-fraud-detection/*, allow
+    - p, proj:mlops-fraud-detection:readonly, logs, get, mlops-fraud-detection/*, allow
+    groups:
+    - mlops:viewers
+
+  # Git webhook sync policy
+  syncWindows:
+  - kind: allow
+    schedule: '* * * * *'  # Always allow sync
+    duration: 24h
+    applications:
+    - '*'
+    manualSync: true
+  
+  # Orphaned resources policy  
+  orphanedResources:
+    warn: true
+    ignore:
+    - group: 'v1'
+      kind: 'Secret'
+      name: '*-token-*'  # Ignore service account tokens
+
+  # Signature verification (if using signed commits)
+  signatureKeys:
+  - keyID: 'fraud-detection-signing-key'

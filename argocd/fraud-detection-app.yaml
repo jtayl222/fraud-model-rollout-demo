@@ -1,0 +1,223 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: fraud-detection-models
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+  annotations:
+    argocd.argoproj.io/refresh: hard
+    argocd.argoproj.io/sync-wave: "2"
+  labels:
+    app.kubernetes.io/name: fraud-detection
+    app.kubernetes.io/component: ml-models
+    app.kubernetes.io/part-of: mlops-pipeline
+spec:
+  project: mlops-fraud-detection
+  
+  source:
+    repoURL: https://github.com/jtayl222/fraud-model-rollout-demo
+    targetRevision: HEAD
+    path: k8s/base
+    
+    # Kustomize configuration
+    kustomize:
+      namePrefix: prod-
+      nameSuffix: ""
+      commonLabels:
+        environment: production
+        managed-by: argocd
+        project: fraud-detection
+      
+      # Configure image tags
+      images:
+      - name: seldonio/mlserver
+        newName: harbor.test/mlops/fraud-model
+        newTag: latest
+      
+      # Patches for production
+      patchesStrategicMerge:
+      - |
+        apiVersion: mlserver.seldon.io/v1beta1
+        kind: Server
+        metadata:
+          name: fraud-v1-baseline-server
+        spec:
+          replicas: 3  # Production scale
+          resources:
+            limits:
+              cpu: 2000m
+              memory: 4Gi
+            requests:
+              cpu: 1000m
+              memory: 2Gi
+      - |
+        apiVersion: mlserver.seldon.io/v1beta1  
+        kind: Server
+        metadata:
+          name: fraud-v2-candidate-server
+        spec:
+          replicas: 2  # Candidate scale
+          resources:
+            limits:
+              cpu: 2000m
+              memory: 4Gi
+            requests:
+              cpu: 1000m
+              memory: 2Gi
+  
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: fraud-detection
+    
+  # Sync policy
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+      allowEmpty: false
+    
+    syncOptions:
+    - CreateNamespace=true
+    - PrunePropagationPolicy=foreground
+    - PruneLast=true
+    - ApplyOutOfSyncOnly=true
+    - RespectIgnoreDifferences=true
+    - ServerSideApply=true
+    
+    # Retry policy
+    retry:
+      limit: 5
+      backoff:
+        duration: 5s
+        factor: 2
+        maxDuration: 3m
+        
+    # Managed namespace metadata
+    managedNamespaceMetadata:
+      labels:
+        managed-by: argocd
+        project: fraud-detection
+        environment: production
+      annotations:
+        argocd.argoproj.io/tracking-id: fraud-detection-models
+        
+  # Health check configuration  
+  revisionHistoryLimit: 10
+  
+  # Ignore differences for certain fields
+  ignoreDifferences:
+  - group: mlserver.seldon.io
+    kind: Model
+    jsonPointers:
+    - /status
+    - /metadata/generation
+  - group: mlserver.seldon.io
+    kind: Server
+    jsonPointers:
+    - /status/replicas
+    - /status/readyReplicas
+  - group: apps
+    kind: Deployment
+    jsonPointers:
+    - /spec/replicas  # Ignore HPA changes
+    
+  # Custom health checks
+  info:
+  - name: 'Model Performance'
+    value: 'Baseline: 73.5% recall, Candidate: 100% recall'
+  - name: 'Traffic Split'
+    value: '80% baseline, 20% candidate'
+  - name: 'Last Updated'
+    value: '{{.status.operationState.finishedAt}}'
+
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: fraud-detection-staging
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"  # Deploy staging first
+  labels:
+    app.kubernetes.io/name: fraud-detection
+    app.kubernetes.io/component: ml-models
+    app.kubernetes.io/part-of: mlops-pipeline
+    environment: staging
+spec:
+  project: mlops-fraud-detection
+  
+  source:
+    repoURL: https://github.com/jtayl222/fraud-model-rollout-demo
+    targetRevision: HEAD
+    path: k8s/overlays/staging
+    
+    kustomize:
+      namePrefix: staging-
+      commonLabels:
+        environment: staging
+        managed-by: argocd
+  
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: fraud-detection-staging
+    
+  # Sync policy for staging (more aggressive)
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+      allowEmpty: false
+    
+    syncOptions:
+    - CreateNamespace=true
+    - PrunePropagationPolicy=foreground
+    - ServerSideApply=true
+    
+    retry:
+      limit: 3
+      backoff:
+        duration: 10s
+        maxDuration: 1m
+
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application  
+metadata:
+  name: fraud-detection-monitoring
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+  annotations:
+    argocd.argoproj.io/sync-wave: "3"  # Deploy monitoring after models
+  labels:
+    app.kubernetes.io/name: fraud-detection
+    app.kubernetes.io/component: monitoring
+    app.kubernetes.io/part-of: mlops-pipeline
+spec:
+  project: mlops-fraud-detection
+  
+  source:
+    repoURL: https://github.com/jtayl222/fraud-model-rollout-demo
+    targetRevision: HEAD
+    path: monitoring
+    
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: monitoring
+    
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: false  # Don't auto-heal monitoring changes
+    
+    syncOptions:
+    - CreateNamespace=true
+    
+    retry:
+      limit: 2
+      backoff:
+        duration: 30s
+        maxDuration: 2m

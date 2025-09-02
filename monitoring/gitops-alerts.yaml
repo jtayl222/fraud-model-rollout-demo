@@ -1,0 +1,306 @@
+# Prometheus Alert Rules for GitOps + MLOps Integration
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: gitops-mlops-alerts
+  namespace: monitoring
+  labels:
+    app: fraud-detection
+    component: gitops-monitoring
+    prometheus: kube-prometheus
+    role: alert-rules
+spec:
+  groups:
+  - name: gitops.deployment
+    interval: 30s
+    rules:
+    - alert: ArgoApplicationSyncFailure
+      expr: |
+        argocd_app_sync_total{name="fraud-detection-models",phase="Failed"} > 0
+      for: 2m
+      labels:
+        severity: critical
+        component: argocd
+        service: fraud-detection
+        action: investigate
+      annotations:
+        summary: "ArgoCD application sync failed"
+        description: "Application {{ $labels.name }} failed to sync in namespace {{ $labels.namespace }}"
+        runbook_url: "https://runbooks.mlops.local/argocd/sync-failure"
+        dashboard_url: "https://grafana.mlops.local/d/gitops-dashboard"
+    
+    - alert: ArgoApplicationOutOfSync
+      expr: |
+        argocd_app_info{sync_status!="Synced",name="fraud-detection-models"} > 0
+      for: 10m
+      labels:
+        severity: warning
+        component: argocd
+        service: fraud-detection
+        action: sync
+      annotations:
+        summary: "ArgoCD application is out of sync"
+        description: "Application {{ $labels.name }} has been out of sync for more than 10 minutes"
+        runbook_url: "https://runbooks.mlops.local/argocd/out-of-sync"
+        
+    - alert: ArgoApplicationHealthDegraded
+      expr: |
+        argocd_app_health_status{name="fraud-detection-models"} == 0
+      for: 5m
+      labels:
+        severity: critical
+        component: argocd
+        service: fraud-detection
+        action: investigate
+      annotations:
+        summary: "ArgoCD application health is degraded"
+        description: "Application {{ $labels.name }} health status is degraded"
+        runbook_url: "https://runbooks.mlops.local/argocd/health-degraded"
+    
+    - alert: DeploymentFrequencyLow
+      expr: |
+        increase(argocd_app_sync_total{name="fraud-detection-models"}[7d]) < 5
+      for: 1h
+      labels:
+        severity: info
+        component: dora-metrics
+        service: fraud-detection
+        action: review
+      annotations:
+        summary: "Low deployment frequency detected"
+        description: "Less than 5 deployments in the last 7 days for {{ $labels.name }}"
+        runbook_url: "https://runbooks.mlops.local/dora/deployment-frequency"
+
+    - alert: HighChangeFailureRate
+      expr: |
+        (sum(increase(argocd_app_sync_total{name="fraud-detection-models",phase="Failed"}[7d])) / 
+         sum(increase(argocd_app_sync_total{name="fraud-detection-models"}[7d]))) * 100 > 15
+      for: 1h
+      labels:
+        severity: warning
+        component: dora-metrics
+        service: fraud-detection
+        action: review
+      annotations:
+        summary: "High change failure rate detected"
+        description: "Change failure rate is {{ $value }}% for {{ $labels.name }} over the last 7 days"
+        runbook_url: "https://runbooks.mlops.local/dora/change-failure-rate"
+
+  - name: argo.workflows
+    interval: 30s
+    rules:
+    - alert: WorkflowExecutionFailure
+      expr: |
+        increase(argo_workflow_status{name=~"fraud-training.*",status="Failed"}[1h]) > 0
+      for: 1m
+      labels:
+        severity: high
+        component: argo-workflows
+        service: ml-training
+        action: investigate
+      annotations:
+        summary: "ML training workflow failed"
+        description: "Workflow {{ $labels.name }} failed in namespace {{ $labels.namespace }}"
+        runbook_url: "https://runbooks.mlops.local/argo-workflows/failure"
+        
+    - alert: WorkflowDurationHigh
+      expr: |
+        histogram_quantile(0.95, argo_workflow_duration_seconds_bucket{name=~"fraud-training.*"}) > 3600
+      for: 5m
+      labels:
+        severity: warning
+        component: argo-workflows
+        service: ml-training
+        action: optimize
+      annotations:
+        summary: "ML training workflow taking too long"
+        description: "95th percentile workflow duration is {{ $value }}s for training workflows"
+        runbook_url: "https://runbooks.mlops.local/argo-workflows/performance"
+        
+    - alert: WorkflowResourceExhaustion
+      expr: |
+        max(container_memory_usage_bytes{container=~".*training.*"}) / 
+        max(container_spec_memory_limit_bytes{container=~".*training.*"}) > 0.9
+      for: 10m
+      labels:
+        severity: warning
+        component: argo-workflows
+        service: ml-training
+        action: scale
+      annotations:
+        summary: "Workflow containers using too much memory"
+        description: "Memory usage is {{ $value | humanizePercentage }} of limit"
+        runbook_url: "https://runbooks.mlops.local/argo-workflows/resources"
+
+  - name: flagger.canary
+    interval: 30s
+    rules:
+    - alert: CanaryDeploymentFailed
+      expr: |
+        flagger_canary_status{namespace="fraud-detection"} == 0
+      for: 5m
+      labels:
+        severity: high
+        component: flagger
+        service: fraud-detection
+        action: rollback
+      annotations:
+        summary: "Canary deployment failed"
+        description: "Canary {{ $labels.name }} failed in namespace {{ $labels.namespace }}"
+        runbook_url: "https://runbooks.mlops.local/flagger/canary-failure"
+        
+    - alert: CanaryAnalysisTooLong
+      expr: |
+        time() - flagger_canary_last_transition_time{namespace="fraud-detection"} > 3600
+      for: 10m
+      labels:
+        severity: warning
+        component: flagger
+        service: fraud-detection
+        action: investigate
+      annotations:
+        summary: "Canary analysis taking too long"
+        description: "Canary {{ $labels.name }} analysis has been running for more than 1 hour"
+        runbook_url: "https://runbooks.mlops.local/flagger/analysis-duration"
+        
+    - alert: CanaryMetricThresholdBreach
+      expr: |
+        (fraud_model_precision{model_name="fraud-v2-candidate"} < 0.85) or
+        (fraud_model_recall{model_name="fraud-v2-candidate"} < 0.90)
+      for: 3m
+      labels:
+        severity: critical
+        component: flagger
+        service: fraud-detection
+        action: rollback
+      annotations:
+        summary: "Canary model performance below threshold"
+        description: "Model performance metrics are below acceptable thresholds"
+        runbook_url: "https://runbooks.mlops.local/flagger/performance-threshold"
+
+  - name: mlops.model.performance
+    interval: 1m
+    rules:
+    - alert: ModelDriftDetected
+      expr: |
+        abs(fraud_model_precision{model_name="fraud-v1-baseline"} - 
+            fraud_model_precision{model_name="fraud-v1-baseline" offset 24h}) > 0.05
+      for: 15m
+      labels:
+        severity: warning
+        component: model-monitoring
+        service: fraud-detection
+        action: retrain
+      annotations:
+        summary: "Model performance drift detected"
+        description: "Baseline model precision has drifted by {{ $value }} from 24h ago"
+        runbook_url: "https://runbooks.mlops.local/model/drift-detection"
+        
+    - alert: ModelPerformanceDegradation
+      expr: |
+        (fraud_model_precision{model_name="fraud-v1-baseline"} < 0.8) or
+        (fraud_model_recall{model_name="fraud-v1-baseline"} < 0.7)
+      for: 10m
+      labels:
+        severity: critical
+        component: model-monitoring
+        service: fraud-detection
+        action: emergency-retrain
+      annotations:
+        summary: "Model performance critically degraded"
+        description: "Production model performance is below critical thresholds"
+        runbook_url: "https://runbooks.mlops.local/model/emergency-response"
+        
+    - alert: ModelInferenceLatencyHigh
+      expr: |
+        histogram_quantile(0.95, 
+          rate(fraud_api_request_duration_seconds_bucket[5m])) > 2.0
+      for: 5m
+      labels:
+        severity: warning
+        component: model-serving
+        service: fraud-detection
+        action: scale
+      annotations:
+        summary: "Model inference latency too high"
+        description: "95th percentile inference latency is {{ $value }}s"
+        runbook_url: "https://runbooks.mlops.local/model/latency-optimization"
+
+  - name: gitops.infrastructure
+    interval: 30s
+    rules:
+    - alert: GitRepositoryUnreachable
+      expr: |
+        up{job="git-exporter"} == 0
+      for: 5m
+      labels:
+        severity: high
+        component: git
+        service: source-control
+        action: investigate
+      annotations:
+        summary: "Git repository is unreachable"
+        description: "Cannot fetch from git repository for GitOps"
+        runbook_url: "https://runbooks.mlops.local/git/connectivity"
+        
+    - alert: ArgoWorkflowControllerDown
+      expr: |
+        up{job="argo-workflows-controller"} == 0
+      for: 2m
+      labels:
+        severity: critical
+        component: argo-workflows
+        service: workflow-controller
+        action: restart
+      annotations:
+        summary: "Argo Workflows controller is down"
+        description: "Argo Workflows controller is not responding"
+        runbook_url: "https://runbooks.mlops.local/argo-workflows/controller-down"
+        
+    - alert: ArgoCDServerDown
+      expr: |
+        up{job="argocd-server"} == 0
+      for: 2m
+      labels:
+        severity: critical
+        component: argocd
+        service: argocd-server
+        action: restart
+      annotations:
+        summary: "ArgoCD server is down"
+        description: "ArgoCD server is not responding"
+        runbook_url: "https://runbooks.mlops.local/argocd/server-down"
+        
+    - alert: FlaggerControllerDown
+      expr: |
+        up{job="flagger"} == 0
+      for: 2m
+      labels:
+        severity: high
+        component: flagger
+        service: progressive-delivery
+        action: restart
+      annotations:
+        summary: "Flagger controller is down"
+        description: "Flagger progressive delivery controller is not responding"
+        runbook_url: "https://runbooks.mlops.local/flagger/controller-down"
+
+  # Notification routing configuration
+  - name: notification.routing
+    interval: 30s
+    rules:
+    - alert: CriticalSystemDown
+      expr: |
+        up{job=~"argocd-server|argo-workflows-controller"} == 0
+      for: 1m
+      labels:
+        severity: critical
+        component: infrastructure
+        service: gitops-core
+        action: emergency-response
+        notify: "slack,pagerduty,email"
+      annotations:
+        summary: "Critical GitOps system is down"
+        description: "Core GitOps component {{ $labels.job }} is not responding"
+        escalation: "immediate"
+        runbook_url: "https://runbooks.mlops.local/emergency/system-down"

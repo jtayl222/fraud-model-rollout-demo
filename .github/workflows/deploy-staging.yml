@@ -1,0 +1,409 @@
+name: Deploy to Staging
+
+"on":
+  workflow_call:
+    inputs:
+      image_tag:
+        description: 'Container image tag to deploy'
+        required: true
+        type: string
+      model_v1_uri:
+        description: 'MLflow URI for baseline model'
+        required: true
+        type: string
+      model_v2_uri:
+        description: 'MLflow URI for candidate model'
+        required: true
+        type: string
+  workflow_dispatch:
+    inputs:
+      image_tag:
+        description: 'Container image tag to deploy'
+        required: true
+        default: 'latest'
+      model_v1_uri:
+        description: 'MLflow URI for baseline model'
+        required: true
+        default: 'models:/fraud-v1-baseline/1'
+      model_v2_uri:
+        description: 'MLflow URI for candidate model'
+        required: true
+        default: 'models:/fraud-v2-candidate/1'
+
+env:
+  KUBE_CONFIG: ${{ secrets.KUBE_CONFIG_STAGING }}
+  HARBOR_REGISTRY: ${{ secrets.HARBOR_REGISTRY }}
+  STAGING_NAMESPACE: fraud-detection-staging
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment: staging
+    steps:
+    - uses: actions/checkout@v3
+
+    - name: Set up kubectl
+      uses: azure/setup-kubectl@v3
+      with:
+        version: 'v1.28.0'
+
+    - name: Configure kubectl
+      run: |
+        echo "${{ env.KUBE_CONFIG }}" | base64 -d > kubeconfig
+        export KUBECONFIG=kubeconfig
+        kubectl config current-context
+
+    - name: Create staging namespace
+      run: |
+        export KUBECONFIG=kubeconfig
+        kubectl create namespace ${{ env.STAGING_NAMESPACE }} --dry-run=client -o yaml | kubectl apply -f -
+
+    - name: Update staging manifests
+      run: |
+        # Create staging overlay if not exists
+        mkdir -p k8s/overlays/staging
+        
+        cat > k8s/overlays/staging/kustomization.yaml << EOF
+        apiVersion: kustomize.config.k8s.io/v1beta1
+        kind: Kustomization
+
+        namespace: ${{ env.STAGING_NAMESPACE }}
+
+        resources:
+        - ../../base
+
+        images:
+        - name: seldonio/mlserver
+          newName: ${{ env.HARBOR_REGISTRY }}/mlops/fraud-model
+          newTag: ${{ inputs.image_tag }}
+
+        patchesStrategicMerge:
+        - staging-config.yaml
+
+        replicas:
+        - name: fraud-v1-baseline-server
+          count: 1
+        - name: fraud-v2-candidate-server
+          count: 1
+        EOF
+
+        # Create staging config patch
+        cat > k8s/overlays/staging/staging-config.yaml << EOF
+        apiVersion: mlserver.seldon.io/v1beta1
+        kind: Model
+        metadata:
+          name: fraud-v1-baseline
+        spec:
+          storageUri: ${{ inputs.model_v1_uri }}
+          requirements:
+          - tensorflow
+          memory: 500Mi
+        ---
+        apiVersion: mlserver.seldon.io/v1beta1
+        kind: Model
+        metadata:
+          name: fraud-v2-candidate
+        spec:
+          storageUri: ${{ inputs.model_v2_uri }}
+          requirements:
+          - tensorflow
+          memory: 500Mi
+        ---
+        apiVersion: mlserver.seldon.io/v1beta1
+        kind: Experiment
+        metadata:
+          name: fraud-ab-test
+        spec:
+          default: fraud-v1-baseline
+          candidates:
+          - name: fraud-v1-baseline
+            weight: 80
+          - name: fraud-v2-candidate
+            weight: 20
+          mirror:
+            percentage: 10
+        EOF
+
+    - name: Deploy to staging
+      run: |
+        export KUBECONFIG=kubeconfig
+        kubectl apply -k k8s/overlays/staging/
+        
+        # Wait for deployment
+        kubectl rollout status deployment/fraud-v1-baseline-server -n ${{ env.STAGING_NAMESPACE }} --timeout=300s
+        kubectl rollout status deployment/fraud-v2-candidate-server -n ${{ env.STAGING_NAMESPACE }} --timeout=300s
+
+    - name: Wait for services to be ready
+      run: |
+        export KUBECONFIG=kubeconfig
+        
+        # Wait for pods to be ready
+        kubectl wait --for=condition=ready pod -l seldon-deployment=fraud-ab-test -n ${{ env.STAGING_NAMESPACE }} --timeout=300s
+        
+        # Get service endpoint
+        SELDON_MESH_IP=$(kubectl get svc seldon-mesh -n ${{ env.STAGING_NAMESPACE }} -o jsonpath='{.status.loadBalancer.ingress[0].ip}')
+        echo "SELDON_MESH_IP=$SELDON_MESH_IP" >> $GITHUB_ENV
+
+    - name: Run smoke tests
+      run: |
+        export KUBECONFIG=kubeconfig
+        
+        # Create test data
+        cat > smoke_test_payload.json << 'EOF'
+        {
+          "parameters": {"content_type": "np"},
+          "inputs": [{
+            "name": "fraud_features", 
+            "shape": [1, 30],
+            "datatype": "FP32",
+            "data": [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0,
+                     0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0,
+                     0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0]
+          }]
+        }
+        EOF
+        
+        # Port forward for testing
+        kubectl port-forward svc/seldon-mesh 8080:80 -n ${{ env.STAGING_NAMESPACE }} &
+        PF_PID=$!
+        sleep 10
+        
+        # Test baseline model
+        echo "Testing baseline model..."
+        RESPONSE=$(curl -s -X POST http://localhost:8080/v2/models/fraud-v1-baseline/infer \
+          -H "Content-Type: application/json" \
+          -H "Host: fraud-detection-staging.local" \
+          -d @smoke_test_payload.json)
+        
+        echo "Baseline response: $RESPONSE"
+        
+        # Verify response contains prediction
+        echo "$RESPONSE" | jq -e '.outputs[0].data[0]' > /dev/null || exit 1
+        
+        # Test candidate model  
+        echo "Testing candidate model..."
+        RESPONSE=$(curl -s -X POST http://localhost:8080/v2/models/fraud-v2-candidate/infer \
+          -H "Content-Type: application/json" \
+          -H "Host: fraud-detection-staging.local" \
+          -d @smoke_test_payload.json)
+          
+        echo "Candidate response: $RESPONSE"
+        
+        # Verify response contains prediction
+        echo "$RESPONSE" | jq -e '.outputs[0].data[0]' > /dev/null || exit 1
+        
+        # Test A/B experiment endpoint
+        echo "Testing A/B experiment..."
+        for i in {1..10}; do
+          RESPONSE=$(curl -s -X POST http://localhost:8080/v2/models/fraud-ab-test/infer \
+            -H "Content-Type: application/json" \
+            -H "Host: fraud-detection-staging.local" \
+            -d @smoke_test_payload.json)
+          echo "A/B test response $i: $RESPONSE"
+          echo "$RESPONSE" | jq -e '.outputs[0].data[0]' > /dev/null || exit 1
+        done
+        
+        # Cleanup
+        kill $PF_PID
+        
+        echo "✅ All smoke tests passed!"
+
+    - name: Run integration tests
+      run: |
+        export KUBECONFIG=kubeconfig
+        
+        # Install test dependencies
+        pip install pytest requests numpy pandas
+        
+        # Create integration test
+        cat > test_staging_integration.py << 'EOF'
+        import pytest
+        import requests
+        import numpy as np
+        import time
+        from typing import Dict, Any
+
+        BASE_URL = "http://localhost:8080"
+        HEADERS = {
+            "Content-Type": "application/json",
+            "Host": "fraud-detection-staging.local"
+        }
+
+        def create_test_payload() -> Dict[str, Any]:
+            """Create a test payload with realistic fraud features"""
+            features = np.random.randn(30).astype(float).tolist()
+            return {
+                "parameters": {"content_type": "np"},
+                "inputs": [{
+                    "name": "fraud_features",
+                    "shape": [1, 30],
+                    "datatype": "FP32", 
+                    "data": features
+                }]
+            }
+
+        def test_model_availability():
+            """Test that both models are available"""
+            response = requests.get(f"{BASE_URL}/v2/models", headers=HEADERS)
+            assert response.status_code == 200
+            models = response.json()
+            model_names = [model["name"] for model in models["models"]]
+            assert "fraud-v1-baseline" in model_names
+            assert "fraud-v2-candidate" in model_names
+
+        def test_baseline_prediction():
+            """Test baseline model prediction"""
+            payload = create_test_payload()
+            response = requests.post(
+                f"{BASE_URL}/v2/models/fraud-v1-baseline/infer",
+                json=payload,
+                headers=HEADERS
+            )
+            assert response.status_code == 200
+            result = response.json()
+            assert "outputs" in result
+            assert len(result["outputs"]) == 1
+            assert len(result["outputs"][0]["data"]) == 1
+            prediction = result["outputs"][0]["data"][0]
+            assert 0 <= prediction <= 1
+
+        def test_candidate_prediction():
+            """Test candidate model prediction"""
+            payload = create_test_payload()
+            response = requests.post(
+                f"{BASE_URL}/v2/models/fraud-v2-candidate/infer", 
+                json=payload,
+                headers=HEADERS
+            )
+            assert response.status_code == 200
+            result = response.json()
+            assert "outputs" in result
+            prediction = result["outputs"][0]["data"][0]
+            assert 0 <= prediction <= 1
+
+        def test_ab_experiment():
+            """Test A/B experiment routing"""
+            payload = create_test_payload()
+            predictions = []
+            
+            # Make multiple requests to see traffic split
+            for _ in range(20):
+                response = requests.post(
+                    f"{BASE_URL}/v2/models/fraud-ab-test/infer",
+                    json=payload, 
+                    headers=HEADERS
+                )
+                assert response.status_code == 200
+                result = response.json()
+                predictions.append(result["outputs"][0]["data"][0])
+                time.sleep(0.1)
+            
+            # Verify we got responses (routing worked)
+            assert len(predictions) == 20
+            assert all(0 <= p <= 1 for p in predictions)
+
+        def test_model_performance():
+            """Test model response times"""
+            payload = create_test_payload()
+            
+            start_time = time.time()
+            response = requests.post(
+                f"{BASE_URL}/v2/models/fraud-v1-baseline/infer",
+                json=payload,
+                headers=HEADERS
+            )
+            response_time = time.time() - start_time
+            
+            assert response.status_code == 200
+            assert response_time < 2.0  # Should respond within 2 seconds
+
+        if __name__ == "__main__":
+            pytest.main([__file__, "-v"])
+        EOF
+        
+        # Port forward for testing
+        kubectl port-forward svc/seldon-mesh 8080:80 -n ${{ env.STAGING_NAMESPACE }} &
+        PF_PID=$!
+        sleep 10
+        
+        # Run integration tests
+        python test_staging_integration.py
+        
+        # Cleanup
+        kill $PF_PID
+        
+        echo "✅ Integration tests passed!"
+
+    - name: Generate deployment report
+      run: |
+        export KUBECONFIG=kubeconfig
+        
+        cat > staging_deployment_report.md << EOF
+        # Staging Deployment Report
+        
+        **Deployment Date**: $(date)
+        **Image Tag**: ${{ inputs.image_tag }}
+        **Namespace**: ${{ env.STAGING_NAMESPACE }}
+        
+        ## Models Deployed
+        
+        - **Baseline (v1)**: ${{ inputs.model_v1_uri }}
+        - **Candidate (v2)**: ${{ inputs.model_v2_uri }}
+        
+        ## Traffic Split
+        
+        - Baseline: 80%
+        - Candidate: 20%
+        
+        ## Service Status
+        
+        \`\`\`
+        $(kubectl get pods -n ${{ env.STAGING_NAMESPACE }} -l seldon-deployment=fraud-ab-test)
+        \`\`\`
+        
+        ## Endpoints
+        
+        - Baseline: http://\${SELDON_MESH_IP}/v2/models/fraud-v1-baseline/infer
+        - Candidate: http://\${SELDON_MESH_IP}/v2/models/fraud-v2-candidate/infer  
+        - A/B Test: http://\${SELDON_MESH_IP}/v2/models/fraud-ab-test/infer
+        
+        ## Test Results
+        
+        ✅ Smoke tests passed
+        ✅ Integration tests passed
+        ✅ Performance tests passed
+        
+        ## Next Steps
+        
+        1. Monitor staging performance for 24 hours
+        2. Run load tests if needed
+        3. Approve for production deployment
+        
+        EOF
+        
+        echo "📊 Staging deployment completed successfully!"
+        cat staging_deployment_report.md
+
+    - name: Upload deployment artifacts
+      uses: actions/upload-artifact@v3
+      with:
+        name: staging-deployment-${{ inputs.image_tag }}
+        path: |
+          staging_deployment_report.md
+          k8s/overlays/staging/
+
+  notify:
+    needs: deploy
+    runs-on: ubuntu-latest
+    if: always()
+    steps:
+    - name: Notify Slack
+      uses: 8398a7/action-slack@v3
+      with:
+        status: ${{ job.status }}
+        text: |
+          Staging deployment ${{ job.status }}
+          Image: ${{ inputs.image_tag }}
+          Models: v1=${{ inputs.model_v1_uri }}, v2=${{ inputs.model_v2_uri }}
+      env:
+        SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}

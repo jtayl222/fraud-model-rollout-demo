@@ -1,0 +1,230 @@
+name: Build and Push Container
+
+"on":
+  workflow_call:
+    inputs:
+      model_v1_uri:
+        description: 'MLflow URI for baseline model'
+        required: true
+        type: string
+      model_v2_uri:
+        description: 'MLflow URI for candidate model'
+        required: true
+        type: string
+      image_tag:
+        description: 'Container image tag'
+        required: true
+        type: string
+  workflow_dispatch:
+    inputs:
+      model_v1_uri:
+        description: 'MLflow URI for baseline model'
+        required: true
+        default: 'models:/fraud-v1-baseline/1'
+      model_v2_uri:
+        description: 'MLflow URI for candidate model' 
+        required: true
+        default: 'models:/fraud-v2-candidate/1'
+      image_tag:
+        description: 'Container image tag'
+        required: true
+        default: 'latest'
+
+env:
+  HARBOR_REGISTRY: ${{ secrets.HARBOR_REGISTRY }}
+  HARBOR_USERNAME: ${{ secrets.HARBOR_USERNAME }}
+  HARBOR_PASSWORD: ${{ secrets.HARBOR_PASSWORD }}
+  MLFLOW_TRACKING_URI: ${{ secrets.MLFLOW_TRACKING_URI }}
+  AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+  AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+
+jobs:
+  build-mlserver:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v3
+
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.9'
+
+    - name: Install MLflow
+      run: |
+        pip install mlflow boto3
+
+    - name: Download models from MLflow
+      run: |
+        mkdir -p models/v1 models/v2
+        
+        # Download baseline model
+        mlflow artifacts download \
+          -u "${{ inputs.model_v1_uri }}" \
+          -d models/v1/
+        
+        # Download candidate model  
+        mlflow artifacts download \
+          -u "${{ inputs.model_v2_uri }}" \
+          -d models/v2/
+
+    - name: Create MLServer configuration
+      run: |
+        # Create model-settings.json for baseline
+        cat > models/v1/model-settings.json << 'EOF'
+        {
+          "name": "fraud-v1-baseline",
+          "implementation": "mlserver_tensorflow.TensorFlowModel",
+          "parameters": {
+            "uri": "/mnt/models/fraud-v1-baseline/"
+          },
+          "max_batch_size": 100,
+          "batch_timeout": 1000
+        }
+        EOF
+        
+        # Create model-settings.json for candidate
+        cat > models/v2/model-settings.json << 'EOF'
+        {
+          "name": "fraud-v2-candidate", 
+          "implementation": "mlserver_tensorflow.TensorFlowModel",
+          "parameters": {
+            "uri": "/mnt/models/fraud-v2-candidate/"
+          },
+          "max_batch_size": 100,
+          "batch_timeout": 1000
+        }
+        EOF
+        
+        # Create global settings
+        cat > settings.json << 'EOF'
+        {
+          "debug": false,
+          "host": "0.0.0.0",
+          "http_port": 8080,
+          "grpc_port": 8081,
+          "metrics_port": 8082,
+          "models_dir": "/mnt/models",
+          "load_models_at_startup": true
+        }
+        EOF
+
+    - name: Create Dockerfile
+      run: |
+        cat > Dockerfile << 'EOF'
+        FROM seldonio/mlserver:1.3.5
+
+        # Copy global settings
+        COPY settings.json /mnt/
+
+        # Copy models with configurations
+        COPY models/v1/ /mnt/models/fraud-v1-baseline/
+        COPY models/v2/ /mnt/models/fraud-v2-candidate/
+
+        # Install additional dependencies
+        RUN pip install tensorflow==2.13.0 numpy pandas scikit-learn
+
+        # Expose ports
+        EXPOSE 8080 8081 8082
+
+        # Health check
+        HEALTHCHECK --interval=30s --timeout=5s --start-period=60s --retries=3 \
+          CMD curl -f http://localhost:8080/v2/health/ready || exit 1
+
+        CMD ["mlserver", "start", "/mnt"]
+        EOF
+
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v2
+
+    - name: Log in to Harbor
+      uses: docker/login-action@v2
+      with:
+        registry: ${{ env.HARBOR_REGISTRY }}
+        username: ${{ env.HARBOR_USERNAME }}
+        password: ${{ env.HARBOR_PASSWORD }}
+
+    - name: Build and push image
+      uses: docker/build-push-action@v4
+      with:
+        context: .
+        platforms: linux/amd64,linux/arm64
+        push: true
+        tags: |
+          ${{ env.HARBOR_REGISTRY }}/mlops/fraud-model:${{ inputs.image_tag }}
+          ${{ env.HARBOR_REGISTRY }}/mlops/fraud-model:latest
+        cache-from: type=gha
+        cache-to: type=gha,mode=max
+
+    - name: Scan image for vulnerabilities
+      uses: aquasecurity/trivy-action@master
+      with:
+        image-ref: '${{ env.HARBOR_REGISTRY }}/mlops/fraud-model:${{ inputs.image_tag }}'
+        format: 'sarif'
+        output: 'trivy-results.sarif'
+
+    - name: Upload scan results
+      uses: github/codeql-action/upload-sarif@v2
+      if: always()
+      with:
+        sarif_file: 'trivy-results.sarif'
+
+  test-container:
+    needs: build-mlserver
+    runs-on: ubuntu-latest
+    steps:
+    - name: Log in to Harbor
+      uses: docker/login-action@v2
+      with:
+        registry: ${{ env.HARBOR_REGISTRY }}
+        username: ${{ env.HARBOR_USERNAME }}
+        password: ${{ env.HARBOR_PASSWORD }}
+
+    - name: Test container
+      run: |
+        # Start container
+        docker run -d --name fraud-model \
+          -p 8080:8080 \
+          ${{ env.HARBOR_REGISTRY }}/mlops/fraud-model:${{ inputs.image_tag }}
+        
+        # Wait for startup
+        sleep 30
+        
+        # Test health endpoints
+        curl -f http://localhost:8080/v2/health/live
+        curl -f http://localhost:8080/v2/health/ready
+        
+        # Test model listing
+        curl -f http://localhost:8080/v2/models
+        
+        # Test model inference (sample data)
+        cat > test_payload.json << 'EOF'
+        {
+          "parameters": {"content_type": "np"},
+          "inputs": [{
+            "name": "fraud_features",
+            "shape": [1, 30],
+            "datatype": "FP32",
+            "data": [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0,
+                     0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0,
+                     0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0]
+          }]
+        }
+        EOF
+        
+        # Test both models
+        curl -X POST http://localhost:8080/v2/models/fraud-v1-baseline/infer \
+          -H "Content-Type: application/json" \
+          -d @test_payload.json
+          
+        curl -X POST http://localhost:8080/v2/models/fraud-v2-candidate/infer \
+          -H "Content-Type: application/json" \
+          -d @test_payload.json
+        
+        # Cleanup
+        docker stop fraud-model
+        docker rm fraud-model
+        
+        echo "✅ Container tests passed!"
+
+    outputs:
+      image-digest: ${{ needs.build-mlserver.outputs.digest }}

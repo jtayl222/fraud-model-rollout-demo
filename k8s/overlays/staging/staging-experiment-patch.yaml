@@ -1,0 +1,17 @@
+# Staging-specific A/B test configuration
+apiVersion: mlops.seldon.io/v1alpha1
+kind: Experiment
+metadata:
+  name: fraud-ab-test-experiment
+spec:
+  # Staging uses 50/50 split for faster validation
+  default: fraud-v1-baseline
+  candidates:
+  - name: fraud-v1-baseline
+    weight: 50
+  - name: fraud-v2-candidate  
+    weight: 50
+  # Staging mirror configuration for safer testing
+  mirror:
+    name: fraud-v2-candidate
+    percent: 100

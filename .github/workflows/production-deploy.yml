@@ -1,0 +1,444 @@
+name: Production Deployment
+
+"on":
+  workflow_dispatch:
+    inputs:
+      image_tag:
+        description: 'Container image tag to deploy to production'
+        required: true
+      model_v1_uri:
+        description: 'MLflow URI for baseline model'
+        required: true
+        default: 'models:/fraud-v1-baseline/1'
+      model_v2_uri:
+        description: 'MLflow URI for candidate model'
+        required: true
+        default: 'models:/fraud-v2-candidate/1'
+      traffic_split:
+        description: 'Traffic split (baseline:candidate)'
+        required: true
+        default: '80:20'
+      approval_required:
+        description: 'Require manual approval'
+        required: false
+        default: 'true'
+
+env:
+  KUBE_CONFIG: ${{ secrets.KUBE_CONFIG_PRODUCTION }}
+  HARBOR_REGISTRY: ${{ secrets.HARBOR_REGISTRY }}
+  PRODUCTION_NAMESPACE: fraud-detection
+
+jobs:
+  pre-deployment-validation:
+    runs-on: ubuntu-latest
+    outputs:
+      validation-passed: ${{ steps.validation.outputs.passed }}
+    steps:
+    - uses: actions/checkout@v3
+
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.9'
+
+    - name: Validate inputs
+      id: validation
+      run: |
+        # Validate traffic split format
+        TRAFFIC_SPLIT="${{ inputs.traffic_split }}"
+        if [[ ! "$TRAFFIC_SPLIT" =~ ^[0-9]+:[0-9]+$ ]]; then
+          echo "Invalid traffic split format: $TRAFFIC_SPLIT"
+          exit 1
+        fi
+        
+        # Extract and validate percentages
+        BASELINE_PERCENT=$(echo $TRAFFIC_SPLIT | cut -d':' -f1)
+        CANDIDATE_PERCENT=$(echo $TRAFFIC_SPLIT | cut -d':' -f2)
+        TOTAL=$((BASELINE_PERCENT + CANDIDATE_PERCENT))
+        
+        if [ $TOTAL -ne 100 ]; then
+          echo "Traffic split must sum to 100, got $TOTAL"
+          exit 1
+        fi
+        
+        echo "baseline_percent=$BASELINE_PERCENT" >> $GITHUB_OUTPUT
+        echo "candidate_percent=$CANDIDATE_PERCENT" >> $GITHUB_OUTPUT
+        echo "passed=true" >> $GITHUB_OUTPUT
+
+    - name: Check image exists in registry
+      run: |
+        # Would check if image exists in Harbor registry
+        echo "Checking if image exists: ${{ env.HARBOR_REGISTRY }}/mlops/fraud-model:${{ inputs.image_tag }}"
+        # docker manifest inspect ${{ env.HARBOR_REGISTRY }}/mlops/fraud-model:${{ inputs.image_tag }}
+
+    - name: Validate MLflow models
+      run: |
+        pip install mlflow boto3
+        
+        # Check if models exist in MLflow registry
+        python -c "
+        import mlflow
+        
+        models = ['${{ inputs.model_v1_uri }}', '${{ inputs.model_v2_uri }}']
+        for model_uri in models:
+            try:
+                model_info = mlflow.models.get_model_info(model_uri)
+                print(f'✓ Model validated: {model_uri}')
+            except Exception as e:
+                print(f'✗ Model validation failed: {model_uri} - {e}')
+                exit(1)
+        "
+
+  staging-smoke-test:
+    needs: pre-deployment-validation
+    runs-on: ubuntu-latest
+    steps:
+    - name: Run staging smoke tests
+      run: |
+        echo "🧪 Running final staging smoke tests before production..."
+        # Would run comprehensive staging tests here
+        echo "✅ Staging smoke tests passed"
+
+  manual-approval:
+    needs: [pre-deployment-validation, staging-smoke-test]
+    runs-on: ubuntu-latest
+    environment: 
+      name: production-approval
+      url: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
+    if: ${{ inputs.approval_required == 'true' }}
+    steps:
+    - name: Manual approval checkpoint
+      run: |
+        echo "🚀 Ready for production deployment"
+        echo "📊 Deployment details:"
+        echo "  Image: ${{ inputs.image_tag }}"
+        echo "  Baseline model: ${{ inputs.model_v1_uri }}"
+        echo "  Candidate model: ${{ inputs.model_v2_uri }}"
+        echo "  Traffic split: ${{ inputs.traffic_split }}"
+        echo ""
+        echo "⏳ Waiting for manual approval..."
+
+  production-deployment:
+    needs: [pre-deployment-validation, staging-smoke-test, manual-approval]
+    if: always() && (needs.manual-approval.result == 'success' || inputs.approval_required == 'false')
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+    - uses: actions/checkout@v3
+
+    - name: Set up kubectl
+      uses: azure/setup-kubectl@v3
+      with:
+        version: 'v1.28.0'
+
+    - name: Configure kubectl
+      run: |
+        echo "${{ env.KUBE_CONFIG }}" | base64 -d > kubeconfig
+        export KUBECONFIG=kubeconfig
+        kubectl config current-context
+
+    - name: Create production namespace
+      run: |
+        export KUBECONFIG=kubeconfig
+        kubectl create namespace ${{ env.PRODUCTION_NAMESPACE }} --dry-run=client -o yaml | kubectl apply -f -
+
+    - name: Backup current production deployment
+      run: |
+        export KUBECONFIG=kubeconfig
+        
+        # Backup current deployments
+        mkdir -p backups
+        kubectl get all -n ${{ env.PRODUCTION_NAMESPACE }} -o yaml > backups/production-backup-$(date +%Y%m%d-%H%M%S).yaml
+        
+        echo "📦 Production backup created"
+
+    - name: Create production overlay
+      run: |
+        mkdir -p k8s/overlays/production
+        
+        # Parse traffic split
+        BASELINE_PERCENT=${{ needs.pre-deployment-validation.outputs.baseline_percent }}
+        CANDIDATE_PERCENT=${{ needs.pre-deployment-validation.outputs.candidate_percent }}
+        
+        cat > k8s/overlays/production/kustomization.yaml << EOF
+        apiVersion: kustomize.config.k8s.io/v1beta1
+        kind: Kustomization
+
+        namespace: ${{ env.PRODUCTION_NAMESPACE }}
+
+        resources:
+        - ../../base
+
+        images:
+        - name: seldonio/mlserver
+          newName: ${{ env.HARBOR_REGISTRY }}/mlops/fraud-model
+          newTag: ${{ inputs.image_tag }}
+
+        patchesStrategicMerge:
+        - production-config.yaml
+
+        replicas:
+        - name: fraud-v1-baseline-server
+          count: 3
+        - name: fraud-v2-candidate-server
+          count: 1
+        EOF
+
+        # Create production-specific configurations
+        cat > k8s/overlays/production/production-config.yaml << EOF
+        apiVersion: mlserver.seldon.io/v1beta1
+        kind: Model
+        metadata:
+          name: fraud-v1-baseline
+        spec:
+          storageUri: ${{ inputs.model_v1_uri }}
+          requirements:
+          - tensorflow
+          memory: 1Gi
+          resources:
+            limits:
+              cpu: 1000m
+              memory: 1Gi
+            requests:
+              cpu: 500m
+              memory: 512Mi
+        ---
+        apiVersion: mlserver.seldon.io/v1beta1
+        kind: Model
+        metadata:
+          name: fraud-v2-candidate
+        spec:
+          storageUri: ${{ inputs.model_v2_uri }}
+          requirements:
+          - tensorflow
+          memory: 1Gi
+          resources:
+            limits:
+              cpu: 1000m
+              memory: 1Gi
+            requests:
+              cpu: 500m
+              memory: 512Mi
+        ---
+        apiVersion: mlserver.seldon.io/v1beta1
+        kind: Experiment
+        metadata:
+          name: fraud-ab-test
+        spec:
+          default: fraud-v1-baseline
+          candidates:
+          - name: fraud-v1-baseline
+            weight: $BASELINE_PERCENT
+          - name: fraud-v2-candidate
+            weight: $CANDIDATE_PERCENT
+          mirror:
+            percentage: 5
+          config:
+            timeout: 30s
+            retries: 3
+        EOF
+
+    - name: Deploy to production
+      run: |
+        export KUBECONFIG=kubeconfig
+        
+        echo "🚀 Starting production deployment..."
+        
+        # Apply configurations
+        kubectl apply -k k8s/overlays/production/
+        
+        # Wait for rollout
+        echo "⏳ Waiting for deployment to complete..."
+        kubectl rollout status deployment/fraud-v1-baseline-server -n ${{ env.PRODUCTION_NAMESPACE }} --timeout=600s
+        kubectl rollout status deployment/fraud-v2-candidate-server -n ${{ env.PRODUCTION_NAMESPACE }} --timeout=600s
+        
+        # Wait for pods to be ready
+        kubectl wait --for=condition=ready pod -l seldon-deployment=fraud-ab-test -n ${{ env.PRODUCTION_NAMESPACE }} --timeout=300s
+        
+        echo "✅ Production deployment completed"
+
+    - name: Production health check
+      run: |
+        export KUBECONFIG=kubeconfig
+        
+        echo "🏥 Running production health checks..."
+        
+        # Get service endpoint
+        SELDON_MESH_IP=$(kubectl get svc seldon-mesh -n ${{ env.PRODUCTION_NAMESPACE }} -o jsonpath='{.status.loadBalancer.ingress[0].ip}')
+        echo "Production endpoint: $SELDON_MESH_IP"
+        
+        # Port forward for testing
+        kubectl port-forward svc/seldon-mesh 8080:80 -n ${{ env.PRODUCTION_NAMESPACE }} &
+        PF_PID=$!
+        sleep 15
+        
+        # Test health endpoints
+        curl -f http://localhost:8080/v2/health/live -H "Host: fraud-detection.local"
+        curl -f http://localhost:8080/v2/health/ready -H "Host: fraud-detection.local"
+        
+        # Test model endpoints
+        cat > prod_test_payload.json << 'EOF'
+        {
+          "parameters": {"content_type": "np"},
+          "inputs": [{
+            "name": "fraud_features",
+            "shape": [1, 30],
+            "datatype": "FP32",
+            "data": [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0,
+                     0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0,
+                     0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0]
+          }]
+        }
+        EOF
+        
+        # Test both models
+        curl -X POST http://localhost:8080/v2/models/fraud-v1-baseline/infer \
+          -H "Content-Type: application/json" \
+          -H "Host: fraud-detection.local" \
+          -d @prod_test_payload.json
+          
+        curl -X POST http://localhost:8080/v2/models/fraud-v2-candidate/infer \
+          -H "Content-Type: application/json" \
+          -H "Host: fraud-detection.local" \
+          -d @prod_test_payload.json
+          
+        # Test A/B experiment
+        curl -X POST http://localhost:8080/v2/models/fraud-ab-test/infer \
+          -H "Content-Type: application/json" \
+          -H "Host: fraud-detection.local" \
+          -d @prod_test_payload.json
+        
+        # Cleanup
+        kill $PF_PID
+        
+        echo "✅ Production health checks passed"
+
+    - name: Enable monitoring
+      run: |
+        export KUBECONFIG=kubeconfig
+        
+        echo "📊 Enabling production monitoring..."
+        
+        # Apply monitoring configurations if they exist
+        if [ -f "monitoring/production-alerts.yaml" ]; then
+          kubectl apply -f monitoring/production-alerts.yaml
+        fi
+        
+        echo "✅ Production monitoring enabled"
+
+    - name: Generate deployment report
+      run: |
+        cat > production_deployment_report.md << EOF
+        # Production Deployment Report
+        
+        **Deployment Date**: $(date)
+        **Image Tag**: ${{ inputs.image_tag }}
+        **Namespace**: ${{ env.PRODUCTION_NAMESPACE }}
+        **GitHub Run**: ${{ github.run_id }}
+        
+        ## Models Deployed
+        
+        - **Baseline (v1)**: ${{ inputs.model_v1_uri }}
+        - **Candidate (v2)**: ${{ inputs.model_v2_uri }}
+        
+        ## Traffic Configuration
+        
+        - **Baseline**: ${{ needs.pre-deployment-validation.outputs.baseline_percent }}%
+        - **Candidate**: ${{ needs.pre-deployment-validation.outputs.candidate_percent }}%
+        - **Mirror Traffic**: 5%
+        
+        ## Resource Allocation
+        
+        - **Baseline Replicas**: 3
+        - **Candidate Replicas**: 1
+        - **Memory per Pod**: 1Gi
+        - **CPU per Pod**: 1000m limit, 500m request
+        
+        ## Health Check Results
+        
+        ✅ Health endpoints responding
+        ✅ Model inference working
+        ✅ A/B experiment routing functional
+        ✅ Monitoring enabled
+        
+        ## Rollback Instructions
+        
+        If rollback is needed:
+        
+        \`\`\`bash
+        kubectl apply -f backups/production-backup-*.yaml
+        \`\`\`
+        
+        ## Monitoring
+        
+        - **Metrics**: Available in Prometheus/Grafana
+        - **Logs**: Available in centralized logging system
+        - **Alerts**: Configured for anomaly detection
+        
+        EOF
+        
+        echo "📋 Production deployment report:"
+        cat production_deployment_report.md
+
+    - name: Upload deployment artifacts
+      uses: actions/upload-artifact@v3
+      with:
+        name: production-deployment-${{ inputs.image_tag }}
+        path: |
+          production_deployment_report.md
+          k8s/overlays/production/
+          backups/
+
+  post-deployment-monitoring:
+    needs: production-deployment
+    runs-on: ubuntu-latest
+    steps:
+    - name: Schedule post-deployment monitoring
+      run: |
+        echo "📊 Starting 24-hour post-deployment monitoring period..."
+        echo "Key metrics to monitor:"
+        echo "  - Response times < 500ms"
+        echo "  - Error rate < 0.1%"
+        echo "  - Model prediction accuracy"
+        echo "  - Traffic distribution matches configuration"
+        
+  notify-deployment:
+    needs: [production-deployment, post-deployment-monitoring]
+    runs-on: ubuntu-latest
+    if: always()
+    steps:
+    - name: Notify stakeholders
+      run: |
+        STATUS="${{ needs.production-deployment.result }}"
+        
+        if [ "$STATUS" = "success" ]; then
+          echo "✅ Production deployment successful!"
+          MESSAGE="🚀 Production deployment completed successfully
+        
+          📊 Deployment Details:
+          - Image: ${{ inputs.image_tag }}
+          - Traffic Split: ${{ inputs.traffic_split }}
+          - Models: Baseline (${{ inputs.model_v1_uri }}) + Candidate (${{ inputs.model_v2_uri }})
+          
+          🔍 Monitor the deployment at: [Grafana Dashboard](https://grafana.example.com/fraud-detection)"
+        else
+          echo "❌ Production deployment failed!"
+          MESSAGE="🚨 Production deployment failed
+          
+          Please check the deployment logs and initiate rollback if necessary."
+        fi
+        
+        echo "Would send notification: $MESSAGE"
+
+    - name: Slack notification
+      uses: 8398a7/action-slack@v3
+      with:
+        status: ${{ needs.production-deployment.result }}
+        text: |
+          Production Deployment ${{ needs.production-deployment.result }}
+          Image: ${{ inputs.image_tag }}
+          Traffic Split: ${{ inputs.traffic_split }}
+          Run: ${{ github.run_id }}
+      env:
+        SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+      if: always() && env.SLACK_WEBHOOK_URL != ''

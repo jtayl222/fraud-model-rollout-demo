@@ -1,0 +1,344 @@
+{
+  "dashboard": {
+    "id": null,
+    "title": "GitOps + MLOps Metrics Dashboard",
+    "tags": ["gitops", "mlops", "fraud-detection"],
+    "timezone": "browser",
+    "refresh": "30s",
+    "schemaVersion": 30,
+    "version": 1,
+    "time": {
+      "from": "now-1h",
+      "to": "now"
+    },
+    "panels": [
+      {
+        "id": 1,
+        "title": "Deployment Frequency",
+        "type": "stat",
+        "targets": [
+          {
+            "expr": "increase(argocd_app_sync_total{name=\"fraud-detection-models\"}[1d])",
+            "legendFormat": "Deployments/Day",
+            "refId": "A"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "color": {"mode": "thresholds"},
+            "thresholds": {
+              "steps": [
+                {"color": "red", "value": 0},
+                {"color": "yellow", "value": 1},
+                {"color": "green", "value": 5}
+              ]
+            },
+            "unit": "short"
+          }
+        },
+        "gridPos": {"h": 6, "w": 6, "x": 0, "y": 0}
+      },
+      {
+        "id": 2,
+        "title": "Lead Time for Changes",
+        "type": "stat",
+        "targets": [
+          {
+            "expr": "histogram_quantile(0.95, argocd_app_sync_duration_seconds_bucket{name=\"fraud-detection-models\"})",
+            "legendFormat": "95th Percentile",
+            "refId": "A"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "color": {"mode": "thresholds"},
+            "thresholds": {
+              "steps": [
+                {"color": "green", "value": 0},
+                {"color": "yellow", "value": 600},
+                {"color": "red", "value": 1800}
+              ]
+            },
+            "unit": "s"
+          }
+        },
+        "gridPos": {"h": 6, "w": 6, "x": 6, "y": 0}
+      },
+      {
+        "id": 3,
+        "title": "Change Failure Rate",
+        "type": "stat",
+        "targets": [
+          {
+            "expr": "sum(increase(argocd_app_sync_total{name=\"fraud-detection-models\",phase=\"Failed\"}[1d])) / sum(increase(argocd_app_sync_total{name=\"fraud-detection-models\"}[1d])) * 100",
+            "legendFormat": "Failure Rate",
+            "refId": "A"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "color": {"mode": "thresholds"},
+            "thresholds": {
+              "steps": [
+                {"color": "green", "value": 0},
+                {"color": "yellow", "value": 5},
+                {"color": "red", "value": 15}
+              ]
+            },
+            "unit": "percent"
+          }
+        },
+        "gridPos": {"h": 6, "w": 6, "x": 12, "y": 0}
+      },
+      {
+        "id": 4,
+        "title": "Mean Time to Recovery",
+        "type": "stat",
+        "targets": [
+          {
+            "expr": "avg(argocd_app_health_status{name=\"fraud-detection-models\"})",
+            "legendFormat": "Health Status",
+            "refId": "A"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "color": {"mode": "thresholds"},
+            "thresholds": {
+              "steps": [
+                {"color": "red", "value": 0},
+                {"color": "yellow", "value": 0.5},
+                {"color": "green", "value": 1}
+              ]
+            },
+            "mappings": [
+              {"options": {"1": {"text": "Healthy"}}, "type": "value"},
+              {"options": {"0": {"text": "Degraded"}}, "type": "value"}
+            ]
+          }
+        },
+        "gridPos": {"h": 6, "w": 6, "x": 18, "y": 0}
+      },
+      {
+        "id": 5,
+        "title": "ArgoCD Application Status",
+        "type": "table",
+        "targets": [
+          {
+            "expr": "argocd_app_info{project=\"mlops-fraud-detection\"}",
+            "format": "table",
+            "refId": "A"
+          }
+        ],
+        "transformations": [
+          {
+            "id": "organize",
+            "options": {
+              "excludeByName": {"Time": true, "__name__": true},
+              "renameByName": {
+                "name": "Application",
+                "health_status": "Health",
+                "sync_status": "Sync Status"
+              }
+            }
+          }
+        ],
+        "gridPos": {"h": 8, "w": 12, "x": 0, "y": 6}
+      },
+      {
+        "id": 6,
+        "title": "Workflow Success Rate",
+        "type": "timeseries",
+        "targets": [
+          {
+            "expr": "sum(rate(argo_workflow_status{status=\"Succeeded\"}[5m])) / sum(rate(argo_workflow_status[5m])) * 100",
+            "legendFormat": "Success Rate %",
+            "refId": "A"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "color": {"mode": "palette-classic"},
+            "unit": "percent",
+            "min": 0,
+            "max": 100
+          }
+        },
+        "gridPos": {"h": 8, "w": 12, "x": 12, "y": 6}
+      },
+      {
+        "id": 7,
+        "title": "Model Training Pipeline Duration",
+        "type": "timeseries",
+        "targets": [
+          {
+            "expr": "histogram_quantile(0.50, argo_workflow_duration_seconds_bucket{name=~\"fraud-training.*\"})",
+            "legendFormat": "50th Percentile",
+            "refId": "A"
+          },
+          {
+            "expr": "histogram_quantile(0.95, argo_workflow_duration_seconds_bucket{name=~\"fraud-training.*\"})",
+            "legendFormat": "95th Percentile",
+            "refId": "B"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "color": {"mode": "palette-classic"},
+            "unit": "s"
+          }
+        },
+        "gridPos": {"h": 8, "w": 12, "x": 0, "y": 14}
+      },
+      {
+        "id": 8,
+        "title": "Active Canary Deployments",
+        "type": "timeseries",
+        "targets": [
+          {
+            "expr": "flagger_canary_total{namespace=\"fraud-detection\"}",
+            "legendFormat": "{{ name }}",
+            "refId": "A"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "color": {"mode": "palette-classic"},
+            "unit": "short"
+          }
+        },
+        "gridPos": {"h": 8, "w": 12, "x": 12, "y": 14}
+      },
+      {
+        "id": 9,
+        "title": "Model Performance Drift Detection",
+        "type": "timeseries",
+        "targets": [
+          {
+            "expr": "fraud_model_precision{model_name=\"fraud-v1-baseline\"}",
+            "legendFormat": "Baseline Precision",
+            "refId": "A"
+          },
+          {
+            "expr": "fraud_model_precision{model_name=\"fraud-v2-candidate\"}",
+            "legendFormat": "Candidate Precision",
+            "refId": "B"
+          },
+          {
+            "expr": "fraud_model_recall{model_name=\"fraud-v1-baseline\"}",
+            "legendFormat": "Baseline Recall",
+            "refId": "C"
+          },
+          {
+            "expr": "fraud_model_recall{model_name=\"fraud-v2-candidate\"}",
+            "legendFormat": "Candidate Recall",
+            "refId": "D"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "color": {"mode": "palette-classic"},
+            "unit": "percentunit",
+            "min": 0,
+            "max": 1
+          }
+        },
+        "gridPos": {"h": 8, "w": 24, "x": 0, "y": 22}
+      },
+      {
+        "id": 10,
+        "title": "Container Resource Usage",
+        "type": "timeseries",
+        "targets": [
+          {
+            "expr": "sum(container_memory_usage_bytes{container=~\"fraud-v.*\"}) by (container)",
+            "legendFormat": "{{ container }} Memory",
+            "refId": "A"
+          },
+          {
+            "expr": "sum(rate(container_cpu_usage_seconds_total{container=~\"fraud-v.*\"}[5m])) by (container)",
+            "legendFormat": "{{ container }} CPU",
+            "refId": "B"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "color": {"mode": "palette-classic"},
+            "unit": "bytes"
+          }
+        },
+        "gridPos": {"h": 8, "w": 24, "x": 0, "y": 30}
+      },
+      {
+        "id": 11,
+        "title": "GitOps Events Timeline",
+        "type": "logs",
+        "targets": [
+          {
+            "expr": "{job=\"argo-events\"} |= \"fraud-detection\"",
+            "refId": "A"
+          }
+        ],
+        "options": {
+          "showTime": true,
+          "showLabels": false,
+          "showCommonLabels": false,
+          "wrapLogMessage": true,
+          "prettifyLogMessage": false,
+          "enableLogDetails": true,
+          "dedupStrategy": "none",
+          "sortOrder": "Descending"
+        },
+        "gridPos": {"h": 10, "w": 24, "x": 0, "y": 38}
+      }
+    ],
+    "annotations": {
+      "list": [
+        {
+          "name": "Deployments",
+          "datasource": "Prometheus",
+          "enable": true,
+          "expr": "argocd_app_sync_total{name=\"fraud-detection-models\"}",
+          "iconColor": "green",
+          "textFormat": "Deployment: {{ name }}"
+        },
+        {
+          "name": "Rollbacks",
+          "datasource": "Prometheus", 
+          "enable": true,
+          "expr": "increase(argocd_app_rollback_total{name=\"fraud-detection-models\"}[1m])",
+          "iconColor": "red",
+          "textFormat": "Rollback: {{ name }}"
+        }
+      ]
+    },
+    "templating": {
+      "list": [
+        {
+          "name": "namespace",
+          "type": "query",
+          "query": "label_values(namespace)",
+          "current": {
+            "value": "fraud-detection",
+            "text": "fraud-detection"
+          },
+          "options": [],
+          "includeAll": false,
+          "multi": false
+        },
+        {
+          "name": "model",
+          "type": "query", 
+          "query": "label_values(fraud_model_precision{namespace=\"$namespace\"}, model_name)",
+          "current": {
+            "value": "All",
+            "text": "All"
+          },
+          "options": [],
+          "includeAll": true,
+          "multi": true
+        }
+      ]
+    }
+  }
+}

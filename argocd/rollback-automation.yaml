@@ -1,0 +1,388 @@
+# Automated rollback configuration for ArgoCD
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: argocd-rollback-automation
+  namespace: argocd
+  labels:
+    app.kubernetes.io/name: argocd-rollback
+    app.kubernetes.io/part-of: mlops-fraud-detection
+data:
+  rollback-config.yaml: |
+    # Rollback rules configuration
+    rules:
+      - name: model-performance-degradation
+        description: "Rollback when model performance drops significantly"
+        condition: |
+          (avg_over_time(fraud_model_precision{model_name="fraud-v2-candidate"}[10m]) < 0.8) or
+          (avg_over_time(fraud_model_recall{model_name="fraud-v2-candidate"}[10m]) < 0.7) or
+          (avg_over_time(fraud_model_f1{model_name="fraud-v2-candidate"}[10m]) < 0.75)
+        action: |
+          kubectl patch application fraud-detection-models -n argocd \
+            --type merge -p '{"operation":{"sync":{"revision":"HEAD~1"}}}'
+        severity: critical
+        cooldown: 30m
+        
+      - name: high-error-rate
+        description: "Rollback when API error rate exceeds threshold"
+        condition: |
+          rate(fraud_api_requests_total{status=~"5.."}[5m]) / 
+          rate(fraud_api_requests_total[5m]) > 0.05
+        action: |
+          argocd app rollback fraud-detection-models --revision stable
+        severity: high
+        cooldown: 15m
+        
+      - name: response-time-degradation
+        description: "Rollback when response times become unacceptable"
+        condition: |
+          histogram_quantile(0.95, 
+            rate(fraud_api_request_duration_seconds_bucket[5m])) > 2.0
+        action: |
+          argocd app sync fraud-detection-models --revision stable --force
+        severity: high
+        cooldown: 20m
+        
+      - name: deployment-failure
+        description: "Rollback when deployment health is degraded"
+        condition: |
+          argocd_app_health_status{name="fraud-detection-models"} != 1
+        action: |
+          argocd app rollback fraud-detection-models --revision HEAD~1
+        severity: critical
+        cooldown: 10m
+        
+      - name: resource-exhaustion
+        description: "Rollback when resource usage is too high"
+        condition: |
+          (avg(container_memory_usage_bytes{container="fraud-v2-candidate"}) / 
+           avg(container_spec_memory_limit_bytes{container="fraud-v2-candidate"}) > 0.9) or
+          (avg(rate(container_cpu_usage_seconds_total{container="fraud-v2-candidate"}[5m])) /
+           avg(container_spec_cpu_quota{container="fraud-v2-candidate"} / 
+               container_spec_cpu_period{container="fraud-v2-candidate"}) > 0.9)
+        action: |
+          kubectl scale deployment fraud-v2-candidate-server --replicas=1 -n fraud-detection &&
+          argocd app sync fraud-detection-models --revision stable
+        severity: warning
+        cooldown: 25m
+        
+    # Global settings
+    settings:
+      prometheus_url: "http://prometheus.monitoring.svc.cluster.local:9090"
+      argocd_server: "argocd-server.argocd.svc.cluster.local"
+      check_interval: "30s"
+      notification_channel: "#ml-alerts"
+
+  rollback-script.sh: |
+    #!/bin/bash
+    set -euo pipefail
+    
+    # Rollback automation script
+    PROMETHEUS_URL="${PROMETHEUS_URL:-http://prometheus.monitoring.svc.cluster.local:9090}"
+    ARGOCD_SERVER="${ARGOCD_SERVER:-argocd-server.argocd.svc.cluster.local}"
+    CHECK_INTERVAL="${CHECK_INTERVAL:-30}"
+    
+    log() {
+        echo "[$(date '+%Y-%m-%d %H:%M:%S')] $*"
+    }
+    
+    check_condition() {
+        local query="$1"
+        local result
+        result=$(curl -s -G "${PROMETHEUS_URL}/api/v1/query" \
+            --data-urlencode "query=${query}" | \
+            jq -r '.data.result[0].value[1] // "0"')
+        
+        # Return 0 if condition is true (result > 0), 1 otherwise
+        if (( $(echo "$result > 0" | bc -l) )); then
+            return 0
+        else
+            return 1
+        fi
+    }
+    
+    execute_rollback() {
+        local app_name="$1"
+        local action="$2"
+        local severity="$3"
+        
+        log "$severity: Executing rollback for $app_name"
+        log "Action: $action"
+        
+        # Execute the rollback action
+        eval "$action"
+        
+        # Send notification
+        send_notification "$app_name" "$action" "$severity"
+        
+        # Wait for cooldown
+        sleep "${cooldown:-300}"
+    }
+    
+    send_notification() {
+        local app="$1"
+        local action="$2"
+        local severity="$3"
+        
+        if [[ -n "${SLACK_WEBHOOK:-}" ]]; then
+            curl -X POST "$SLACK_WEBHOOK" \
+                -H 'Content-Type: application/json' \
+                -d "{
+                    \"text\": \"🚨 MLOps Rollback Executed\",
+                    \"blocks\": [{
+                        \"type\": \"section\",
+                        \"text\": {
+                            \"type\": \"mrkdwn\",
+                            \"text\": \"*Severity:* $severity\\n*Application:* $app\\n*Action:* \`$action\`\"
+                        }
+                    }]
+                }"
+        fi
+    }
+    
+    # Main monitoring loop
+    main() {
+        log "Starting rollback automation monitor..."
+        
+        while true; do
+            # Check model performance degradation
+            if check_condition "(avg_over_time(fraud_model_precision{model_name=\"fraud-v2-candidate\"}[10m]) < 0.8) or (avg_over_time(fraud_model_recall{model_name=\"fraud-v2-candidate\"}[10m]) < 0.7)"; then
+                execute_rollback "fraud-detection-models" \
+                    "argocd app rollback fraud-detection-models --revision HEAD~1" \
+                    "CRITICAL"
+            fi
+            
+            # Check high error rate
+            if check_condition "rate(fraud_api_requests_total{status=~\"5..\"}[5m]) / rate(fraud_api_requests_total[5m]) > 0.05"; then
+                execute_rollback "fraud-detection-models" \
+                    "argocd app sync fraud-detection-models --revision stable --force" \
+                    "HIGH"
+            fi
+            
+            # Check response time degradation
+            if check_condition "histogram_quantile(0.95, rate(fraud_api_request_duration_seconds_bucket[5m])) > 2.0"; then
+                execute_rollback "fraud-detection-models" \
+                    "argocd app sync fraud-detection-models --revision stable --force" \
+                    "HIGH"
+            fi
+            
+            log "Rollback check completed, sleeping for ${CHECK_INTERVAL}s..."
+            sleep "$CHECK_INTERVAL"
+        done
+    }
+    
+    # Trap signals for graceful shutdown
+    trap 'log "Shutting down rollback automation..."; exit 0' SIGTERM SIGINT
+    
+    main "$@"
+
+---
+# Deployment for rollback automation service
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: argocd-rollback-automation
+  namespace: argocd
+  labels:
+    app: argocd-rollback-automation
+    component: automation
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: argocd-rollback-automation
+  template:
+    metadata:
+      labels:
+        app: argocd-rollback-automation
+    spec:
+      serviceAccountName: argocd-rollback-automation
+      containers:
+      - name: rollback-monitor
+        image: alpine:3.18
+        command: ["/bin/sh"]
+        args: 
+        - -c
+        - |
+          apk add --no-cache curl jq bc &&
+          /scripts/rollback-script.sh
+        env:
+        - name: PROMETHEUS_URL
+          value: "http://prometheus.monitoring.svc.cluster.local:9090"
+        - name: ARGOCD_SERVER  
+          value: "argocd-server.argocd.svc.cluster.local"
+        - name: CHECK_INTERVAL
+          value: "30"
+        - name: SLACK_WEBHOOK
+          valueFrom:
+            secretKeyRef:
+              name: slack-webhook-secret
+              key: webhook-url
+              optional: true
+        - name: ARGOCD_TOKEN
+          valueFrom:
+            secretKeyRef:
+              name: argocd-token
+              key: token
+        volumeMounts:
+        - name: scripts
+          mountPath: /scripts
+          readOnly: true
+        resources:
+          limits:
+            cpu: 100m
+            memory: 128Mi
+          requests:
+            cpu: 50m  
+            memory: 64Mi
+      volumes:
+      - name: scripts
+        configMap:
+          name: argocd-rollback-automation
+          defaultMode: 0755
+          items:
+          - key: rollback-script.sh
+            path: rollback-script.sh
+
+---
+# ServiceAccount for rollback automation
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: argocd-rollback-automation
+  namespace: argocd
+  labels:
+    app: argocd-rollback-automation
+
+---
+# ClusterRole for rollback automation
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: argocd-rollback-automation
+  labels:
+    app: argocd-rollback-automation
+rules:
+# ArgoCD application management
+- apiGroups: ["argoproj.io"]
+  resources: ["applications"]
+  verbs: ["get", "list", "patch", "update"]
+  
+# Kubernetes resource scaling/management
+- apiGroups: ["apps"]
+  resources: ["deployments", "deployments/scale"]
+  verbs: ["get", "list", "patch", "update"]
+  
+# Pod and service monitoring
+- apiGroups: [""]
+  resources: ["pods", "services"]
+  verbs: ["get", "list"]
+  
+# Metrics access
+- apiGroups: ["metrics.k8s.io"]
+  resources: ["*"]
+  verbs: ["get", "list"]
+
+---
+# ClusterRoleBinding for rollback automation
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: argocd-rollback-automation
+  labels:
+    app: argocd-rollback-automation
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: argocd-rollback-automation
+subjects:
+- kind: ServiceAccount
+  name: argocd-rollback-automation
+  namespace: argocd
+
+---
+# Secret template for ArgoCD token (needs to be created manually)
+apiVersion: v1
+kind: Secret
+metadata:
+  name: argocd-token
+  namespace: argocd
+  labels:
+    app: argocd-rollback-automation
+  annotations:
+    kubernetes.io/service-account.name: argocd-rollback-automation
+type: Opaque
+stringData:
+  token: "REPLACE_WITH_ACTUAL_ARGOCD_TOKEN"
+
+---
+# Prometheus rules for rollback automation
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: fraud-detection-rollback-rules
+  namespace: monitoring
+  labels:
+    app: fraud-detection
+    component: rollback-automation
+spec:
+  groups:
+  - name: fraud.detection.rollback
+    interval: 30s
+    rules:
+    - alert: ModelPerformanceDegradation
+      expr: |
+        (avg_over_time(fraud_model_precision{model_name="fraud-v2-candidate"}[10m]) < 0.8) or
+        (avg_over_time(fraud_model_recall{model_name="fraud-v2-candidate"}[10m]) < 0.7) or  
+        (avg_over_time(fraud_model_f1{model_name="fraud-v2-candidate"}[10m]) < 0.75)
+      for: 2m
+      labels:
+        severity: critical
+        component: fraud-detection
+        action: rollback
+      annotations:
+        summary: "Fraud model performance has degraded significantly"
+        description: "Model {{ $labels.model_name }} performance is below acceptable thresholds"
+        runbook_url: "https://runbooks.mlops.local/fraud-detection/rollback"
+        
+    - alert: HighErrorRate
+      expr: |
+        rate(fraud_api_requests_total{status=~"5.."}[5m]) / 
+        rate(fraud_api_requests_total[5m]) > 0.05
+      for: 1m
+      labels:
+        severity: high
+        component: fraud-detection
+        action: rollback
+      annotations:
+        summary: "High error rate detected in fraud detection API"
+        description: "Error rate is {{ $value | humanizePercentage }} over the last 5 minutes"
+        
+    - alert: ResponseTimeDegradation
+      expr: |
+        histogram_quantile(0.95, 
+          rate(fraud_api_request_duration_seconds_bucket[5m])) > 2.0
+      for: 3m
+      labels:
+        severity: high
+        component: fraud-detection
+        action: rollback  
+      annotations:
+        summary: "Response times have become unacceptable"
+        description: "95th percentile response time is {{ $value }}s"
+        
+    - alert: ResourceExhaustion
+      expr: |
+        (avg(container_memory_usage_bytes{container="fraud-v2-candidate"}) / 
+         avg(container_spec_memory_limit_bytes{container="fraud-v2-candidate"}) > 0.9) or
+        (avg(rate(container_cpu_usage_seconds_total{container="fraud-v2-candidate"}[5m])) /
+         avg(container_spec_cpu_quota{container="fraud-v2-candidate"} / 
+             container_spec_cpu_period{container="fraud-v2-candidate"}) > 0.9)
+      for: 5m
+      labels:
+        severity: warning
+        component: fraud-detection
+        action: scale-down
+      annotations:
+        summary: "Resource usage is critically high"
+        description: "Container resource utilization is above 90%"
