@@ -20,26 +20,33 @@ Phase 6 has been **successfully completed** with comprehensive monitoring infras
 
 ## 📊 Operational Metrics
 
-### **Model Performance Tracking**
+### **Model Performance Tracking (Confusion Matrix Analysis)**
 ```
 ✅ fraud-v1-baseline (Baseline Model):
-   • Accuracy: 85.2%
-   • Precision: 98.1% (low false positives)
-   • Recall: 73.4% (current fraud detection rate)
-   • Traffic: 80% (primary production model)
+   • Accuracy: 97.59%
+   • Precision: 1.000 (perfect - no false positives)
+   • Recall: 0.714 (71.4% - conservative fraud detection)
+   • Confusion Matrix: TN=152, FP=0, FN=4, TP=10
+   • Traffic: 83.0% actual (166/200 transactions)
+   • Avg inference time: 884.0ms
 
 ✅ fraud-v2-candidate (Candidate Model):
-   • Accuracy: 87.8% (+2.6% improvement)
-   • Precision: 97.2% (-0.9% slight decrease)
-   • Recall: 100.0% (+26.6% major improvement)
-   • Traffic: 20% (evaluation model)
+   • Accuracy: 100.00% (perfect on small sample)
+   • Precision: 1.000 (perfect - no false positives)
+   • Recall: 1.000 (100% - detected all fraud in sample)
+   • Confusion Matrix: TN=28, FP=0, FN=0, TP=6
+   • Traffic: 17.0% actual (34/200 transactions)
+   • Avg inference time: 948.9ms
 ```
 
-### **Key Business Metrics**
-- **Fraud Detection Rate**: 73.4% (baseline) vs 100% (candidate)
-- **False Positive Rate**: 1.9% (baseline) vs 2.8% (candidate)
+### **Key Business Metrics (Confusion Matrix Results)**
+- **Overall System Accuracy**: 98.0% (196/200 correct classifications)
+- **Fraud Detection Performance**: Perfect precision (1.000), 80% recall
+- **F1-Score**: 0.889 (good balance, room for recall improvement)
+- **Business Impact**: 0 false positives (customer-friendly), 4 missed fraud cases
 - **Model Availability**: 2/2 models healthy and responsive
-- **A/B Split Accuracy**: 80/20 traffic distribution configured
+- **A/B Split Performance**: Client-side routing achieving 83.0/17.0 distribution
+- **System Throughput**: 4.42 transactions/second sustained
 
 ## 🔧 Monitoring Infrastructure Details
 
@@ -80,26 +87,29 @@ curl http://192.168.1.209:9091/metrics | grep fraud_model_recall
 
 ## 📈 A/B Test Decision Framework
 
-### **Promotion Criteria (Based on Metrics)**
-The candidate model (v2) shows clear improvement:
+### **Current Performance Analysis (Confusion Matrix Results)**
+The candidate model shows promising but limited results:
 
 ```
 Decision Metrics Analysis:
-✅ Recall improvement: +26.6% (73.4% → 100%) - EXCEEDS +5% threshold
-✅ Precision maintained: -0.9% (98.1% → 97.2%) - WITHIN ±1% tolerance
-✅ Overall accuracy: +2.6% improvement (85.2% → 87.8%)
-⚠️  False positive rate: +0.9% increase (1.9% → 2.8%) - Monitor impact
+✅ Candidate model superior accuracy: 100% vs 97.59% baseline  
+✅ Perfect recall on candidate sample: 6/6 fraud cases detected (100%)
+✅ Precision maintained: Both models show 1.000 precision (no false positives)
+⚠️  Small sample limitation: Only 34 transactions for candidate (vs 166 baseline)
+⚠️  Overall system recall: 80% (4 fraud cases missed across all models)
 
-RECOMMENDATION: PROMOTE candidate model v2
-- Dramatically improved fraud detection (100% recall)
-- Minimal precision impact (-0.9%)
-- Acceptable false positive trade-off for fraud prevention
+CURRENT RECOMMENDATION: EXPAND TESTING
+- Candidate model shows perfect performance on limited sample
+- Need larger sample size for statistical significance
+- Consider threshold optimization to improve overall recall from 80%
 ```
 
-### **Statistical Significance**
-- **Sample Size**: Current requests ~50 per model (need 10,000+ for full analysis)
-- **Confidence**: Monitoring infrastructure ready for extended testing
-- **A/B Duration**: Recommend 2-4 weeks for production decision
+### **Statistical Significance (Updated Status)**
+- **Sample Size**: 200 transactions completed (166 baseline, 34 candidate)
+- **Baseline Performance**: 97.59% accuracy, 71.4% recall (10/14 fraud detected)
+- **Candidate Performance**: 100% accuracy, 100% recall (6/6 fraud detected)
+- **Statistical Limitation**: Candidate sample too small for definitive conclusions
+- **Next Phase**: Scale to 1,000+ transactions per model for statistical power
 
 ## 🎯 Phase 6 Achievements
 
@@ -129,11 +139,13 @@ Based on monitoring data, the candidate model demonstrates:
 - **Acceptable Trade-offs**: Minimal precision impact
 - **Production Readiness**: Infrastructure proven stable
 
-### **Next Steps**
-1. **Extended A/B Testing**: Run for 2-4 weeks to gather statistical significance
-2. **Traffic Simulation**: Create realistic transaction load for testing
-3. **Business Review**: Present metrics to stakeholders for promotion decision
-4. **Gradual Rollout**: If approved, increase candidate traffic (20% → 50% → 100%)
+### **Next Steps (Updated Plan)**
+1. ✅ **Traffic Simulation**: Completed - 200 transactions with 4.42 tx/sec throughput
+2. ✅ **Production Validation**: Completed - Both models working with 98.0% accuracy
+3. **Threshold Optimization**: Address 20% fraud miss rate (improve recall from 80%)
+4. **Extended A/B Testing**: Scale to 1,000+ transactions per model for significance
+5. **Business Impact Analysis**: Evaluate cost of 4 missed fraud cases vs 0 false positives
+6. **Gradual Rollout**: Based on expanded testing results
 
 ## 📊 Monitoring Endpoints
 
