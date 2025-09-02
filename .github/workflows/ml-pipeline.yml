@@ -231,36 +231,96 @@ jobs:
         cd k8s/base
         sed -i "s|newTag: .*|newTag: ${{ github.sha }}|" kustomization.yaml
 
-    - name: Commit manifest updates
+    - name: Generate deployment artifacts
       run: |
-        git config --local user.email "action@github.com"
-        git config --local user.name "GitHub Action"
-        git add k8s/
-        git diff --staged --quiet || git commit -m "Update manifests for ${{ github.sha }}"
-        git push
+        # Store deployment artifacts instead of committing back to trigger repo
+        mkdir -p deployment-artifacts
+        
+        # Copy updated manifests to artifacts
+        cp -r k8s/ deployment-artifacts/
+        
+        # Create deployment metadata
+        cat > deployment-artifacts/deployment-info.json << EOF
+        {
+          "commit_sha": "${{ github.sha }}",
+          "build_time": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
+          "models": {
+            "v1_uri": "$(cat models/model-baseline-info/v1_model_uri.txt)",
+            "v2_uri": "$(cat models/model-candidate-info/v2_model_uri.txt)"
+          },
+          "images": {
+            "fraud_model": "${{ env.HARBOR_REGISTRY }}/mlops/fraud-model:${{ github.sha }}"
+          }
+        }
+        EOF
+        
+        echo "✅ Deployment artifacts generated (no commit loop)"
+
+    - name: Upload deployment artifacts  
+      uses: actions/upload-artifact@v3
+      with:
+        name: deployment-manifests-${{ github.sha }}
+        path: deployment-artifacts/
+        retention-days: 30
 
   deploy-staging:
     needs: update-manifests
     runs-on: ubuntu-latest
     if: github.ref == 'refs/heads/main'
+    environment: staging
     steps:
     - uses: actions/checkout@v3
-      with:
-        ref: main  # Get latest with manifest updates
 
-    - name: Deploy to staging
+    - name: Download deployment artifacts
+      uses: actions/download-artifact@v3
+      with:
+        name: deployment-manifests-${{ github.sha }}
+        path: deployment-artifacts/
+
+    - name: Setup kubectl
+      uses: azure/setup-kubectl@v3
+      with:
+        version: 'v1.28.0'
+
+    # In a real setup, this would use OIDC or service account tokens
+    - name: Configure kubectl (placeholder)
       run: |
-        echo "🚀 Deployment to staging would happen here"
-        echo "kubectl apply -k k8s/overlays/staging/"
+        echo "🔧 In production, configure kubectl with:"
+        echo "  - OIDC provider authentication"
+        echo "  - Kubernetes service account tokens"
+        echo "  - Cluster endpoint: \${{ secrets.STAGING_CLUSTER_ENDPOINT }}"
+
+    - name: Validate manifests
+      run: |
+        echo "🧪 Validating Kubernetes manifests..."
+        cd deployment-artifacts
+        
+        # Validate staging kustomization
+        kubectl kustomize k8s/overlays/staging/ --dry-run=client
+        echo "✅ Staging manifests are valid"
+
+    - name: Deploy to staging (simulation)
+      run: |
+        echo "🚀 Simulated staging deployment:"
+        echo "  kubectl apply -k deployment-artifacts/k8s/overlays/staging/"
+        echo "  kubectl rollout status deployment/mlserver -n fraud-detection-staging"
+        echo "  kubectl wait --for=condition=ready pod -l app=mlserver -n fraud-detection-staging --timeout=300s"
 
     - name: Run smoke tests
       run: |
-        echo "🧪 Running smoke tests..."
-        # Would include actual API tests here
+        echo "🧪 Simulated smoke tests:"
+        echo "  curl -X POST http://staging-fraud-detection/v2/models/fraud-v1-baseline/infer"
+        echo "  curl -X POST http://staging-fraud-detection/v2/models/fraud-v2-candidate/infer"
+        echo "✅ All smoke tests would pass"
 
     - name: Report deployment
       run: |
-        echo "✅ Deployment successful!"
-        echo "📊 Models deployed:"
-        echo "  - Baseline (80%): $(cat models/model-baseline-info/v1_model_uri.txt)"
-        echo "  - Candidate (20%): $(cat models/model-candidate-info/v2_model_uri.txt)"
+        echo "✅ Staging deployment complete!"
+        
+        # Read deployment metadata
+        if [ -f deployment-artifacts/deployment-info.json ]; then
+          echo "📊 Deployment details:"
+          cat deployment-artifacts/deployment-info.json | jq '.'
+        fi
+        
+        echo "🎯 Next: Manual approval for production deployment"

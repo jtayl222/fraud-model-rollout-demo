@@ -1,0 +1,19 @@
+# Production A/B test configuration
+apiVersion: mlops.seldon.io/v1alpha1
+kind: Experiment
+metadata:
+  name: fraud-ab-test-experiment
+spec:
+  # Production uses conservative 80/20 split
+  default: fraud-v1-baseline
+  candidates:
+  - name: fraud-v1-baseline
+    weight: 80
+  - name: fraud-v2-candidate  
+    weight: 20
+  # Production configuration for safety
+  config:
+    # Enable shadow mode for candidate during initial rollout
+    shadow: 
+      name: fraud-v2-candidate
+      percent: 20

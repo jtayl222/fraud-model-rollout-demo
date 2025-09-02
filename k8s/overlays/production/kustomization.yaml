@@ -1,0 +1,41 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+# Reference the base configuration
+resources:
+- ../../base
+
+# Production namespace (can be overridden by ArgoCD)
+namespace: fraud-detection
+
+# Production image transformations
+images:
+- name: harbor.test/library/seldon-agent
+  newName: 192.168.1.210/library/seldon-agent
+  newTag: latest
+- name: harbor.test/library/mlserver
+  newName: 192.168.1.210/library/mlserver
+  newTag: latest
+- name: harbor.test/library/fraud-detector
+  newName: 192.168.1.210/library/fraud-detector
+  newTag: latest
+
+# Production-specific patches (conservative 80/20 split)
+patches:
+- path: production-experiment-patch.yaml
+  target:
+    kind: Experiment
+    name: fraud-ab-test-experiment
+
+# Production resource scaling
+patches:
+- target:
+    kind: Server
+    name: mlserver
+  patch: |-
+    - op: replace
+      path: /spec/replicas
+      value: 2
+
+# Note: ConfigMap values would be updated by CI/CD pipeline
+# or ArgoCD with environment-specific S3 URIs
