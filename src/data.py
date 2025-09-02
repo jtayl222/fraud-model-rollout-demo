@@ -5,7 +5,7 @@ import pandas as pd
 
 # --- Step 1: Set up Your Project Environment ---
 print("Step 1: Setting up Project Environment...")
-project_dir = "fraud_ab_testing_demo"
+project_dir = "."
 data_dir = os.path.join(project_dir, "data")
 enriched_dir = os.path.join(data_dir, "enriched")
 splits_dir = os.path.join(data_dir, "splits")
@@ -19,13 +19,13 @@ print(f"Created directories: {project_dir}/data, {enriched_dir}, {splits_dir}")
 
 # --- Step 2: Download and Initial Data Exploration ---
 print("\nStep 2: Downloading and Initial Data Exploration...")
-# Assuming creditcard.csv is manually downloaded and placed in fraud_ab_testing_demo/data/
+# Assuming creditcard.csv is manually downloaded and placed in data/
 csv_path = os.path.join(data_dir, "creditcard.csv")
 
 if not os.path.exists(csv_path):
     print(
         f"Error: {csv_path} not found. Please download 'creditcard.csv' from Kaggle "
-        "Credit Card Fraud Dataset and place it in the 'fraud_ab_testing_demo/data/' folder."
+        "Credit Card Fraud Dataset and place it in the 'data/' folder."
     )
     # Exit or handle error appropriately if the file is not found
     exit()

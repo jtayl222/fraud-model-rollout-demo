@@ -33,13 +33,13 @@ print("--- Phase 1: Dataset Strategy ---")
 print("Step 1: Setting up Project Environment (directories created).")
 
 print("\nStep 2: Downloading and Initial Data Exploration...")
-# Assuming creditcard.csv is manually downloaded and placed in fraud_ab_testing_demo/data/
+# Assuming creditcard.csv is manually downloaded and placed in data/
 csv_path = os.path.join(data_dir, "creditcard.csv")
 
 if not os.path.exists(csv_path):
     print(
         f"Error: {csv_path} not found. Please download 'creditcard.csv' from Kaggle "
-        "Credit Card Fraud Dataset and place it in the 'fraud_ab_testing_demo/data/' folder."
+        "Credit Card Fraud Dataset and place it in the 'data/' folder."
     )
     exit()
 
